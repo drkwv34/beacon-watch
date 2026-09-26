@@ -1,0 +1,10 @@
+{
+  "name": "@beacon-watch/mock-target",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Deterministic HTTP target for Compose demos and CI. Never probe real third-party sites in tests.",
+  "scripts": {
+    "start": "node src/server.js"
+  }
+}

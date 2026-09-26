@@ -1,0 +1,16 @@
+---
+description: Pure domain package rules (incident machine, scheduling math, error codes)
+globs: packages/domain/**
+alwaysApply: false
+---
+
+# packages/domain
+
+- Pure, deterministic TypeScript. No `fetch`, `node:*` IO modules, `pg`, Redis, Fastify, Next, or React (ESLint enforces).
+- Functions take explicit inputs, including `now` and `random`, and return values plus intents. No hidden clocks or globals.
+- Closed sets are `as const` tuples with derived union types and a type guard for untrusted input.
+- The incident machine must match SRS Appendix B exactly; its tests replay the worked example row by row.
+- Every exported function has unit tests next to it (`*.test.ts`). Aim for exhaustive branch coverage here; this is where correctness lives.
+- Error codes in `errors.ts` are public API: add, never rename.
+
+See `docs/architecture/domain-modeling.md`.

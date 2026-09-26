@@ -1,0 +1,9 @@
+packages:
+  - apps/*
+  - packages/*
+  - mock-target
+
+onlyBuiltDependencies:
+  - esbuild
+  - sharp
+  - unrs-resolver

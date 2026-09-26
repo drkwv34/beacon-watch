@@ -1,0 +1,17 @@
+---
+description: Next.js dashboard and status page look-and-feel, a11y, and state conventions
+globs: apps/web/**
+alwaysApply: false
+---
+
+# apps/web
+
+- App Router, server components by default, `'use client'` only for interactive leaves. Data via the API (`API_BASE_URL`), never `packages/db`.
+- Styling: tokens in `src/app/globals.css` only (`--color-*`, `--space-*`, `--radius-*`). No hex values or magic pixel sizes in components. No UI kit.
+- Layout: single column, max width `--content-max`, mobile-first, must work at 375px. Skip link + `<main id="main">`.
+- Status is never color-only: use `StatusBadge` (text + dot).
+- Every data view defines empty, loading (`loading.tsx` skeleton), and error (`error.tsx` → `StatePanel tone="danger"` with retry and `request_id`) states. Use the exact SRS copy: "Add your first monitor.", "Monitoring starting…", "No successful checks yet.".
+- Forms: visible labels, inline errors via `aria-describedby`, focus first invalid field, disable submit while pending.
+- Missing and private status pages render the same 404.
+
+See `docs/architecture/frontend-conventions.md`.
