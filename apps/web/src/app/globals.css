@@ -1,0 +1,148 @@
+/*
+ * Design tokens: the only place raw colors, sizes, and radii are defined.
+ * Components reference var(--*) tokens; see docs/architecture/frontend-conventions.md.
+ * Status colors meet WCAG AA contrast against --color-surface for text use.
+ */
+:root {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  --color-bg: #f7f8fa;
+  --color-surface: #ffffff;
+  --color-border: #d9dde3;
+  --color-text: #1b1f24;
+  --color-text-muted: #57606a;
+  --color-focus: #0b5fff;
+
+  --color-status-up: #1a7f37;
+  --color-status-down: #cf222e;
+  --color-status-unknown: #6e7781;
+  --color-status-paused: #9a6700;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --content-max: 72rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #0d1117;
+    --color-surface: #161b22;
+    --color-border: #30363d;
+    --color-text: #e6edf3;
+    --color-text-muted: #9198a1;
+    --color-focus: #4493f8;
+    --color-status-up: #3fb950;
+    --color-status-down: #f85149;
+    --color-status-unknown: #9198a1;
+    --color-status-paused: #d29922;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.5;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+.skip-link {
+  position: absolute;
+  left: -999px;
+}
+
+.skip-link:focus {
+  left: var(--space-4);
+  top: var(--space-4);
+  background: var(--color-surface);
+  padding: var(--space-2) var(--space-4);
+}
+
+.site-header {
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+  padding: var(--space-4) var(--space-6);
+}
+
+.brand {
+  font-weight: 600;
+}
+
+.container {
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-4);
+}
+
+.state-panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-8) var(--space-6);
+  text-align: center;
+}
+
+.state-panel--danger {
+  border-color: var(--color-status-down);
+}
+
+.state-panel p {
+  color: var(--color-text-muted);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid currentColor;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.badge__dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.badge--up {
+  color: var(--color-status-up);
+}
+.badge--down {
+  color: var(--color-status-down);
+}
+.badge--unknown {
+  color: var(--color-status-unknown);
+}
+.badge--paused {
+  color: var(--color-status-paused);
+}
