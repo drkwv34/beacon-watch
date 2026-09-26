@@ -1,0 +1,109 @@
+name: beacon-watch
+
+# Local demo topology (SRS §2.7): api + worker + web + db + redis + mock-target.
+# Defaults below are non-secret local placeholders; override via .env (see .env.example).
+
+x-app-env: &app-env
+  NODE_ENV: ${NODE_ENV:-development}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  DATABASE_URL: postgresql://${POSTGRES_USER:-beacon}:${POSTGRES_PASSWORD:-beacon-local-only}@db:5432/${POSTGRES_DB:-beacon}
+  REDIS_URL: redis://redis:6379
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-beacon}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-beacon-local-only}
+      POSTGRES_DB: ${POSTGRES_DB:-beacon}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    ports:
+      - '127.0.0.1:5432:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: ['redis-server', '--save', '', '--appendonly', 'no']
+    ports:
+      - '127.0.0.1:6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mock-target:
+    build:
+      context: ./mock-target
+    environment:
+      MOCK_TARGET_PORT: 8080
+    ports:
+      - '127.0.0.1:${MOCK_TARGET_PORT:-8080}:8080'
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:8080/health']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      target: api
+    environment:
+      <<: *app-env
+      API_HOST: 0.0.0.0
+      API_PORT: 4000
+      SESSION_SECRET: ${SESSION_SECRET:-replace-me-with-at-least-32-random-characters}
+      PUBLIC_RATE_LIMIT_PER_MIN: ${PUBLIC_RATE_LIMIT_PER_MIN:-60}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
+    ports:
+      - '127.0.0.1:${API_PORT:-4000}:4000'
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:4000/healthz']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  worker:
+    build:
+      context: .
+      target: worker
+    environment:
+      <<: *app-env
+      SSRF_PROTECTION: 'false'
+      PROBE_MAX_CONCURRENCY: ${PROBE_MAX_CONCURRENCY:-20}
+      PROBE_MAX_PER_HOST: ${PROBE_MAX_PER_HOST:-2}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mock-target:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      target: web
+    environment:
+      NODE_ENV: production
+      API_BASE_URL: http://api:4000
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
+    ports:
+      - '127.0.0.1:${WEB_PORT:-3000}:3000'
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  db-data:
