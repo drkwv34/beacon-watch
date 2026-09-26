@@ -1,0 +1,15 @@
+---
+description: Fastify API conventions (routes, errors, authz, public API)
+globs: apps/api/**
+alwaysApply: false
+---
+
+# apps/api
+
+- Layout per capability: `src/modules/<capability>/{routes.ts, service.ts, schemas.ts}`. Routes validate with Zod and call one service method.
+- Services own the transaction and authorization; every target query is scoped by `user_id`.
+- Throw `DomainError`; the central handler in `src/app.ts` maps codes to HTTP and the `{ error: { code, message, request_id } }` envelope.
+- Public routes (`/api/public/v1/*`) return 404 for private or missing targets alike, and are rate limited per IP (fail closed if Redis is down).
+- `snake_case` JSON, ISO-8601 UTC timestamps, `/api/v1` prefix for authenticated routes.
+- The API never makes outbound HTTP calls to targets. "Check now" only sets `next_check_at = now()`.
+- Test routes with `app.inject()`; integration tests hit real Postgres/Redis service containers.

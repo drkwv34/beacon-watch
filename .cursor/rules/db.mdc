@@ -1,0 +1,15 @@
+---
+description: Persistence, migrations, and repository rules
+globs: packages/db/**
+alwaysApply: false
+---
+
+# packages/db
+
+- Forward-only SQL migrations: `migrations/NNNN_description.sql`, one transaction each. Never edit a merged migration; add a new one.
+- Repositories: one per aggregate, parameterized SQL only, accept a transaction handle, map rows to domain types (`snake_case` → `camelCase`).
+- Required indexes: `checks(target_id, checked_at DESC)`, partial unique `incidents(target_id) WHERE status='open'`, partial `targets(next_check_at) WHERE enabled`, partial unique `targets(public_slug)`.
+- Map unique violations (`23505`) to `DomainError('CONFLICT')` only where the constraint represents a user-facing conflict; the open-incident index violation is a no-op.
+- No business decisions in repositories.
+
+See `docs/architecture/persistence.md` and `docs/architecture/transactionality.md`.

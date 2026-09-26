@@ -1,0 +1,26 @@
+---
+description: Worker, scheduler, and isolated probe HTTP client rules
+globs: apps/worker/**
+alwaysApply: false
+---
+
+# apps/worker
+
+## Scheduling
+
+- Claim due rows with `SELECT … FOR UPDATE SKIP LOCKED LIMIT n` and advance `next_check_at = now + interval + jitter(0–10%)` in the same short transaction (the lease).
+- Probe **outside** any transaction; record the result in a second short transaction that locks the target row, inserts the check, applies the domain incident transition, and updates counters.
+- Never use `setInterval` as the scheduler of record; the loop polls the DB for due work.
+
+## Probe client (`src/probe/`, normative: docs/architecture/external-integrations.md)
+
+- Dedicated undici `Agent`; total timeout = `target.timeout_ms`; connect timeout ≤ min(2000, timeout_ms).
+- Read at most 4096 body bytes then abort; follow ≤ 3 redirects manually; `User-Agent: beacon-watch/1.0`; no cookies.
+- With `SSRF_PROTECTION=true`, resolve DNS, reject private/loopback/link-local/metadata addresses, pin the validated IP, and re-check on every redirect hop.
+- Failures are returned as data with an `errorCode`; never retry inside a check.
+
+## Resilience
+
+- Global semaphore (`PROBE_MAX_CONCURRENCY`) + per-host semaphore (`PROBE_MAX_PER_HOST`).
+- Each check is isolated in try/catch; one target can never crash the process.
+- Child logger per check with `target_id`, `check_id`; log `latency_ms`, `success`, `error_code`.

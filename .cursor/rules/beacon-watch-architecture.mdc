@@ -1,0 +1,40 @@
+---
+description: beacon-watch architecture gate — topology, layering, OpenSpec, conventions index
+alwaysApply: true
+---
+
+# beacon-watch — agent rules
+
+Read `docs/architecture/README.md` and the topic doc for whatever you touch before writing code. Those docs are normative.
+
+## Topology (SRS §2.7, ADR 0001)
+
+- `apps/api` Fastify HTTP API · `apps/worker` scheduler + probe pool · `apps/web` Next.js dashboard + `/s/[slug]`
+- `packages/domain` pure TS (types, error codes, incident machine) · `packages/db` forward-only migrations + repositories
+- `mock-target` deterministic HTTP server for Compose/CI
+
+Dependency direction: `apps/* → packages/db → packages/domain`. `apps/web` may import only types from `packages/domain` and talks to the API over HTTP.
+
+## Hard rules
+
+1. `packages/domain` does no IO and imports no framework, driver, or HTTP module. Inject `now` and `random`.
+2. Outbound HTTP to monitored targets exists only in `apps/worker/src/probe/`, with the limits in `docs/architecture/external-integrations.md` (timeouts, 4 KiB body cap, ≤ 3 redirects, SSRF re-check per hop). Never use bare `fetch` elsewhere; ESLint blocks it.
+3. Expected failures throw/return `DomainError` with a stable code; the API maps codes to HTTP centrally. No stack traces or driver messages in responses.
+4. One transaction per use case, opened in the service layer. No network IO while a transaction is open. Cache writes happen after commit.
+5. Config only via each app's Zod `config.ts`; new env vars also go in `.env.example` and `docker-compose.yml`.
+6. Migrations are forward-only SQL in `packages/db/migrations/`; never edit a merged one.
+7. Structured pino logs; no `console.*`; never log secrets, cookies, target headers/bodies, or URL query strings.
+8. Redis is cache + rate limiter only. Redis down → serve from Postgres, except the public API rate limiter, which fails closed (503).
+9. Tests never touch real third-party hosts; use `mock-target`.
+
+## Process gates
+
+- Product behavior changes need an **approved** OpenSpec change in `openspec/changes/` (see `openspec/README.md`). Tooling/docs do not.
+- pnpm only (`pnpm-lock.yaml` committed). Run `pnpm lint && pnpm typecheck && pnpm test && pnpm build` before pushing.
+- Conventional commits; one logical change per commit; branch per theme; merge via PR when CI is green.
+- No secrets in git. MIT license.
+
+## Convention docs (mandatory topics)
+
+error-handling · transactionality · domain-modeling · logging-observability · layering-and-patterns · testing-strategy ·
+external-integrations · caching-and-rate-limits · frontend-conventions · persistence · app-conventions — all under `docs/architecture/`.
