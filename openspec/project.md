@@ -1,5 +1,7 @@
 # Project context — beacon-watch
 
+Planning context for OpenSpec is also in [`config.yaml`](config.yaml) (`context:` and `rules:`), which the CLI includes in artifact instructions.
+
 ## Purpose
 
 Uptime and latency monitoring with incident timelines, cached status pages, and a rate-limited public API.

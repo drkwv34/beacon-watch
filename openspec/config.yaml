@@ -1,0 +1,20 @@
+schema: spec-driven
+
+context: |
+  Project: beacon-watch — uptime/latency monitoring, incident timelines, cached status pages, rate-limited public API.
+  Stack: TypeScript strict, Node 22, pnpm workspaces, Fastify API, Node worker, Next.js App Router, Postgres 16, Redis 7, Zod, pino, Vitest, Docker Compose.
+  Topology: apps/api (auth, targets, public JSON, rate limits), apps/worker (probes, incidents, cache), apps/web (dashboard, /s/[slug]), packages/domain (pure), packages/db (migrations/repos), mock-target for CI.
+  Normative architecture: docs/architecture/ and .cursor/rules/. Domain is pure (no IO). Probes only in apps/worker/src/probe/. One transaction per use case. Forward-only migrations.
+  Capability map (specs created on first archive): auth (FR-AUTH-001..003), targets (FR-TGT-001..003), scheduling, probe, incidents, caching, public-api, dashboard-ui, observability — see openspec/project.md for full FR/NFR IDs.
+  Domain constraints: min interval 30s, default 60s; timeout 500–10000ms; ≤50 targets/user; grace/recovery default 2; one open incident per target; Redis down → Postgres fallback, public API rate limit fails closed (503); CI uses mock-target only.
+  Requirement style: SHALL/MUST wording, #### Scenario: with WHEN/THEN bullets; keep FR/NFR IDs in requirement titles.
+
+rules:
+  proposal:
+    - Include FR/NFR IDs from the SRS; reference capabilities from openspec/project.md.
+    - Mark BREAKING changes explicitly; list out-of-scope items.
+  specs:
+    - Use delta sections ## ADDED / ## MODIFIED / ## REMOVED Requirements with at least one #### Scenario: per requirement.
+    - Keep FR/NFR traceability in requirement titles.
+  tasks:
+    - Tick tasks in tasks.md during /opsx-apply; include tests (unit domain, integration with mock-target) and docs/architecture updates when conventions change.
