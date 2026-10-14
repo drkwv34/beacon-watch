@@ -16,7 +16,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           Skip to content
         </a>
         <header className="site-header">
-          <span className="brand">beacon-watch</span>
+          <a className="brand" href="/">
+            beacon-watch
+          </a>
+          <nav className="nav">
+            <a href="/dashboard">Dashboard</a>
+            <a href="/login">Sign in</a>
+          </nav>
         </header>
         <main id="main" className="container">
           {children}
