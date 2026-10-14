@@ -1,6 +1,14 @@
+import cookie from '@fastify/cookie';
 import Fastify, { type FastifyInstance } from 'fastify';
-import { isDomainError, type ErrorCode } from '@beacon-watch/domain';
+import { DomainError, isDomainError, type ErrorCode } from '@beacon-watch/domain';
+import type { DbPool } from '@beacon-watch/db';
 import type { ApiConfig } from './config.js';
+import { SESSION_COOKIE } from './cookies.js';
+import { systemLookup, type LookupFn } from './lookup.js';
+import { AuthService } from './modules/auth/service.js';
+import { assertCsrf, registerProtectedAuthRoutes, registerPublicAuthRoutes } from './modules/auth/routes.js';
+import { TargetService } from './modules/targets/service.js';
+import { registerTargetRoutes } from './modules/targets/routes.js';
 
 export const REDACT_PATHS = ['req.headers.authorization', 'req.headers.cookie', 'res.headers["set-cookie"]'];
 
@@ -19,7 +27,17 @@ export interface ErrorBody {
   error: { code: ErrorCode; message: string; request_id: string; details?: Record<string, unknown> };
 }
 
-export function buildApp(config: Pick<ApiConfig, 'LOG_LEVEL'>): FastifyInstance {
+export interface AppDeps {
+  pool: DbPool;
+  lookup?: LookupFn;
+  now?: () => Date;
+  randomBytes?: (size: number) => Buffer;
+}
+
+export async function buildApp(
+  config: Pick<ApiConfig, 'LOG_LEVEL'> & Partial<ApiConfig>,
+  deps?: AppDeps,
+): Promise<FastifyInstance> {
   const app = Fastify({
     logger: { level: config.LOG_LEVEL, redact: REDACT_PATHS },
     genReqId: () => crypto.randomUUID(),
@@ -66,6 +84,49 @@ export function buildApp(config: Pick<ApiConfig, 'LOG_LEVEL'>): FastifyInstance 
   });
 
   app.get('/healthz', async () => ({ status: 'ok' }));
+
+  if (deps) {
+    const fullConfig = config as ApiConfig;
+    const lookup = deps.lookup ?? systemLookup;
+    const auth = new AuthService(deps.pool, fullConfig, deps.now, deps.randomBytes);
+    const targets = new TargetService(deps.pool, fullConfig, lookup, deps.now);
+
+    app.get('/readyz', async () => {
+      try {
+        await deps.pool.query('SELECT 1');
+      } catch {
+        throw new DomainError('DEPENDENCY_UNAVAILABLE', 'Postgres is unavailable');
+      }
+      return { status: 'ok', postgres: 'ok' };
+    });
+
+    await app.register(
+      async (v1) => {
+        await v1.register(cookie);
+        await registerPublicAuthRoutes(v1, auth, fullConfig);
+
+        await v1.register(async (protectedApi) => {
+          protectedApi.addHook('preHandler', async (request) => {
+            const token = request.cookies[SESSION_COOKIE];
+            const session = await auth.resolveSession(token);
+            if (!session) {
+              throw new DomainError('UNAUTHENTICATED', 'Authentication required');
+            }
+            request.authUser = session.user;
+          });
+          protectedApi.addHook('preHandler', async (request) => {
+            assertCsrf(request);
+          });
+          await registerProtectedAuthRoutes(protectedApi, auth, fullConfig);
+          await registerTargetRoutes(protectedApi, targets);
+          protectedApi.all('/*', async () => {
+            throw new DomainError('NOT_FOUND', 'Route not found');
+          });
+        });
+      },
+      { prefix: '/api/v1' },
+    );
+  }
 
   return app;
 }

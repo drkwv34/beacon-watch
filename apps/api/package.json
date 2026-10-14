@@ -10,7 +10,10 @@
     "start": "node dist/main.js"
   },
   "dependencies": {
+    "@beacon-watch/db": "workspace:*",
     "@beacon-watch/domain": "workspace:*",
+    "@fastify/cookie": "^11.0.2",
+    "@node-rs/argon2": "^2.0.2",
     "fastify": "^5.12.5",
     "zod": "^4.6.5"
   }

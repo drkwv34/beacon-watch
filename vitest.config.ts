@@ -8,5 +8,6 @@ export default defineConfig({
   test: {
     include: ['{apps,packages}/*/src/**/*.test.ts'],
     passWithNoTests: false,
+    fileParallelism: false,
   },
 });
