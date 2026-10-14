@@ -59,8 +59,11 @@ services:
       API_HOST: 0.0.0.0
       API_PORT: 4000
       SESSION_SECRET: ${SESSION_SECRET:-replace-me-with-at-least-32-random-characters}
+      SESSION_TTL_SECONDS: ${SESSION_TTL_SECONDS:-604800}
       PUBLIC_RATE_LIMIT_PER_MIN: ${PUBLIC_RATE_LIMIT_PER_MIN:-60}
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
+      SSRF_PROTECTION: ${SSRF_PROTECTION:-true}
+      SSRF_ALLOWLIST: ${SSRF_ALLOWLIST:-mock-target}
     ports:
       - '127.0.0.1:${API_PORT:-4000}:4000'
     depends_on:

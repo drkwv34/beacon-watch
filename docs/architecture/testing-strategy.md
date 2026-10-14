@@ -8,7 +8,7 @@ Test hard edges and contracts thoroughly; don't chase line coverage on scaffoldi
 | --- | --- | --- | --- |
 | Unit | Vitest | `packages/domain` (incident machine, jitter, scheduling math, SSRF classifier, rate-limit math), config parsing, error mapping | Every push/PR |
 | API | Vitest + `app.inject()` | Route validation, error envelope, authz (403 vs 404 on public routes) without a network socket | Every push/PR |
-| Integration | Vitest + Postgres/Redis service containers + `mock-target` | `SKIP LOCKED` with two workers, grace/recovery sequences, Redis-down degrade, 429 bursts, cache invalidation | Every PR (from Day 3) |
+| Integration | Vitest + Postgres service (Redis + mock-target from Day 3) | Auth sessions, target CRUD/SSRF/ownership; later `SKIP LOCKED`, Redis-down, 429 | Every PR (Postgres from Day 2) |
 | Contract | Vitest + Zod schema | Public status JSON shape (SRS Appendix A) | Every PR (from Day 5) |
 | E2E | Playwright | Create target → see check → open public page | PRs and `main` (from Day 7) |
 
@@ -24,4 +24,5 @@ Test hard edges and contracts thoroughly; don't chase line coverage on scaffoldi
 ## CI gate (`.github/workflows/ci.yml`)
 
 `install --frozen-lockfile → format:check → lint → typecheck → test → build`, plus a parallel job that validates
-`docker-compose.yml` and builds every image. Integration services and Playwright are added to the same workflow as those suites appear.
+`docker-compose.yml` and builds every image. The quality job provides Postgres 16 for `*.int.test.ts`. Playwright
+is added when the Day 7 e2e suite lands.

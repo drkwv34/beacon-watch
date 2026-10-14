@@ -2,7 +2,7 @@
 
 - **Postgres 16 is the source of truth.** Everything in Redis can be rebuilt from it.
 - **Driver:** `pg` with a shared `Pool` per process, created in the composition root. Query text is plain parameterized SQL in repositories.
-  (Tooling choice is finalized in the Day 2 OpenSpec change; this doc is updated then.)
+- **Migrations:** in-repo runner (`packages/db/src/migrate.ts`) applying `NNNN_*.sql` in lexical order. See [ADR 0003](decisions/0003-sql-migrations.md).
 - **Migrations are forward-only** (SRS §8.6): `packages/db/migrations/NNNN_description.sql`. Never edit a merged migration.
   To undo, write a new migration. Each file runs in one transaction; the runner records applied files in `schema_migrations`.
 - **Naming:** tables plural `snake_case`; timestamps `timestamptz`; ids `uuid` (generated with `gen_random_uuid()`); FKs `ON DELETE CASCADE` from checks/incidents to targets.

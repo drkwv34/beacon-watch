@@ -1,7 +1,24 @@
-import { fileURLToPath } from 'node:url';
-
-/**
- * Forward-only SQL migrations live here, named `NNNN_description.sql`.
- * Tooling, schema, and repositories arrive with the first approved OpenSpec change (Day 2).
- */
-export const MIGRATIONS_DIR = fileURLToPath(new URL('../migrations/', import.meta.url));
+export { createPool, type DbClient, type DbPool, type Queryable } from './client.js';
+export { withTransaction } from './transaction.js';
+export { migrate, listMigrationFiles, isMigrationFilename } from './migrate.js';
+export { MIGRATIONS_DIR } from './paths.js';
+export { isUniqueViolation, conflictIfUnique } from './errors.js';
+export { insertUser, findUserByEmail, findUserById, type UserRow } from './repositories/users.js';
+export {
+  insertSession,
+  findSessionByTokenHash,
+  deleteSessionByTokenHash,
+  touchSessionExpiry,
+  type SessionRow,
+} from './repositories/sessions.js';
+export {
+  insertTarget,
+  findTargetById,
+  listTargetsForUser,
+  countTargetsForUser,
+  updateTarget,
+  deleteTarget,
+  mapTarget,
+  toPublicTarget,
+  type TargetRow,
+} from './repositories/targets.js';

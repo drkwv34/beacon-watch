@@ -12,8 +12,10 @@
 | --- | --- | --- |
 | `VALIDATION_FAILED` | 400 | Zod/domain rule failure; `details.fields` lists offending fields |
 | `UNAUTHENTICATED` | 401 | Missing/expired session |
-| `FORBIDDEN` | 403 | Authenticated but not the owner (FR-ERR-003) |
-| `NOT_FOUND` | 404 | Unknown id, **or a private target accessed publicly** (never 403 on public routes, to avoid leaking existence) |
+| `FORBIDDEN` | 403 | Authenticated but not the owner (FR-ERR-003); CSRF failure on a cookie-authenticated mutation |
+| `NOT_FOUND` | 404 | Unknown id on authenticated routes, **or a private target accessed publicly** (never 403 on public routes, to avoid leaking existence) |
+
+Authenticated target routes distinguish missing (404) from another user's target (403). That leaks existence to signed-in users and is accepted for FR-ERR-003. Public routes (Day 5) still use 404 for both.
 | `CONFLICT` | 409 | `public_slug` taken |
 | `RATE_LIMITED` | 429 | Public API over quota; always with `Retry-After` |
 | `DEPENDENCY_UNAVAILABLE` | 503 | Rate limiter cannot reach Redis (fail closed), DB down on `/readyz` |
