@@ -18,7 +18,17 @@ export {
   countTargetsForUser,
   updateTarget,
   deleteTarget,
+  claimDueTargets,
+  lockTargetForUpdate,
+  updateTargetAfterCheck,
   mapTarget,
   toPublicTarget,
   type TargetRow,
 } from './repositories/targets.js';
+export {
+  insertCheck,
+  listChecksForTarget,
+  countChecksForTarget,
+  mapCheck,
+  type CheckRow,
+} from './repositories/checks.js';
