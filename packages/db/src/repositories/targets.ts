@@ -1,6 +1,7 @@
 import {
   asTargetId,
   asUserId,
+  computeNextCheckAt,
   type HttpMethod,
   type TargetHeaders,
   type TargetId,
@@ -253,4 +254,48 @@ export async function updateTarget(
 export async function deleteTarget(db: Queryable, id: TargetId): Promise<boolean> {
   const result = await db.query(`DELETE FROM targets WHERE id = $1`, [id]);
   return (result.rowCount ?? 0) > 0;
+}
+
+export async function claimDueTargets(
+  db: Queryable,
+  input: { now: Date; limit: number; random: () => number },
+): Promise<TargetRow[]> {
+  if (input.limit <= 0) return [];
+  const { rows } = await db.query<TargetRecord>(
+    `SELECT * FROM targets
+     WHERE enabled AND next_check_at <= $1
+     ORDER BY next_check_at ASC, id ASC
+     FOR UPDATE SKIP LOCKED
+     LIMIT $2`,
+    [input.now, input.limit],
+  );
+  const claimed: TargetRow[] = [];
+  for (const row of rows) {
+    const nextCheckAt = computeNextCheckAt(input.now, row.interval_seconds, input.random);
+    const updated = await db.query<TargetRecord>(
+      `UPDATE targets SET next_check_at = $2, updated_at = $3 WHERE id = $1 RETURNING *`,
+      [row.id, nextCheckAt, input.now],
+    );
+    claimed.push(mapTarget(updated.rows[0]!));
+  }
+  return claimed;
+}
+
+export async function lockTargetForUpdate(db: Queryable, id: TargetId): Promise<TargetRow | undefined> {
+  const { rows } = await db.query<TargetRecord>(`SELECT * FROM targets WHERE id = $1 FOR UPDATE`, [id]);
+  const row = rows[0];
+  return row ? mapTarget(row) : undefined;
+}
+
+export async function updateTargetAfterCheck(
+  db: Queryable,
+  id: TargetId,
+  patch: { lastCheckedAt: Date; lastStatus: TargetStatus; now: Date },
+): Promise<TargetRow | undefined> {
+  const { rows } = await db.query<TargetRecord>(
+    `UPDATE targets SET last_checked_at = $2, last_status = $3, updated_at = $4 WHERE id = $1 RETURNING *`,
+    [id, patch.lastCheckedAt, patch.lastStatus, patch.now],
+  );
+  const row = rows[0];
+  return row ? mapTarget(row) : undefined;
 }

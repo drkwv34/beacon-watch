@@ -2,8 +2,9 @@
 
 Uptime and latency monitoring with incident timelines, cached status pages, and a rate-limited public API.
 
-> **Status: auth + targets.** Session login and owner-scoped HTTP monitor CRUD are in. Probes, scheduler,
-> incidents, Redis, and public status pages land behind later OpenSpec changes.
+> **Status: auth + targets + scheduler/probes.** Session login, owner-scoped HTTP monitor CRUD, due-target
+> claiming, and the isolated probe client are in. Incidents, Redis, and public status pages land behind later
+> OpenSpec changes.
 
 ## What it will do
 
@@ -49,14 +50,15 @@ Fields and bounds follow SRS §3.2. **Delete is hard delete** of the target row 
 incidents do not exist yet; when they do they will `ON DELETE CASCADE`. When `SSRF_PROTECTION=true` (API default),
 create/update resolve DNS and reject private, loopback, link-local, CGNAT, and metadata addresses. Compose keeps
 the demo working by allowlisting `mock-target` (`SSRF_ALLOWLIST`) on the API and setting `SSRF_PROTECTION=false`
-on the worker only.
+on the worker only so probes can reach `http://mock-target:8080` on the Docker network (Appendix C #6). Production
+profiles must keep worker SSRF protection on.
 
-## Hard edges (designed, not yet built)
+## Hard edges
 
 - **Scheduling:** `FOR UPDATE SKIP LOCKED` claims with a `next_check_at` lease, so N workers never double-check a target.
 - **Probe isolation:** hard timeouts, 4 KiB body cap, ≤ 3 redirects, SSRF checks with DNS pinning on every hop.
-- **Flaky targets:** grace/recovery thresholds (default 2) so one blip never pages anyone.
-- **Cache failure modes:** Redis down → status pages serve from Postgres; the public API rate limiter fails closed.
+- **Flaky targets:** grace/recovery thresholds (default 2) so one blip never pages anyone. (Day 4)
+- **Cache failure modes:** Redis down → status pages serve from Postgres; the public API rate limiter fails closed. (Day 5)
 
 Details: [`docs/architecture/`](docs/architecture/README.md).
 
@@ -74,7 +76,8 @@ cp .env.example .env          # optional; Compose has safe local defaults
 docker compose up --build     # api :4000, web :3000, mock-target :8080, Postgres, Redis
 curl localhost:4000/healthz
 # Register, then add a monitor at http://localhost:3000/dashboard
-# Demo target URL: http://mock-target:8080/health (allowlisted in Compose)
+# Demo target URL: http://mock-target:8080/health (allowlisted on the API; worker SSRF is off in Compose)
+# Slow fixture for timeout tests: http://mock-target:8080/slow?ms=2000
 ```
 
 ## Contributing (humans and agents)

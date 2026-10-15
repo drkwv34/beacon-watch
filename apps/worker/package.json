@@ -10,8 +10,10 @@
     "start": "node dist/main.js"
   },
   "dependencies": {
+    "@beacon-watch/db": "workspace:*",
     "@beacon-watch/domain": "workspace:*",
     "pino": "^10.3.1",
+    "undici": "^7.30.0",
     "zod": "^4.6.5"
   }
 }

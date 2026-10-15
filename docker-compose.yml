@@ -83,9 +83,12 @@ services:
       target: worker
     environment:
       <<: *app-env
+      # Appendix C #6: worker-only; API stays protected with SSRF_ALLOWLIST=mock-target.
       SSRF_PROTECTION: 'false'
       PROBE_MAX_CONCURRENCY: ${PROBE_MAX_CONCURRENCY:-20}
       PROBE_MAX_PER_HOST: ${PROBE_MAX_PER_HOST:-2}
+      PROBE_INSECURE_TLS: ${PROBE_INSECURE_TLS:-false}
+      SCHEDULER_POLL_MS: ${SCHEDULER_POLL_MS:-1000}
     depends_on:
       db:
         condition: service_healthy
