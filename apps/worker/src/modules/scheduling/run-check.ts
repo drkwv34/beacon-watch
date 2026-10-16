@@ -1,13 +1,17 @@
 import {
   claimDueTargets,
+  findOpenIncident,
   insertCheck,
+  insertOpenIncident,
   lockTargetForUpdate,
+  resolveIncident,
   updateTargetAfterCheck,
   withTransaction,
+  type CheckRow,
   type DbPool,
   type TargetRow,
 } from '@beacon-watch/db';
-import { truncateErrorMessage, type ProbeErrorCode } from '@beacon-watch/domain';
+import { applyCheckResult, truncateErrorMessage, type ProbeErrorCode, type TargetId } from '@beacon-watch/domain';
 import type { Logger } from 'pino';
 import type { ProbeClient, ProbeOutcome, ProbeTarget } from '../../probe/client.js';
 import type { HostSemaphore, Semaphore } from '../../pool/semaphore.js';
@@ -54,6 +58,55 @@ function internalFailure(err: unknown): ProbeOutcome {
   };
 }
 
+export async function persistCheck(
+  pool: DbPool,
+  targetId: TargetId,
+  checkedAt: Date,
+  result: ProbeOutcome,
+): Promise<CheckRow | undefined> {
+  return withTransaction(pool, async (tx) => {
+    const locked = await lockTargetForUpdate(tx, targetId);
+    if (!locked) return undefined;
+    const inserted = await insertCheck(tx, {
+      targetId,
+      checkedAt,
+      success: result.success,
+      statusCode: result.statusCode,
+      latencyMs: result.latencyMs,
+      errorCode: result.errorCode,
+      errorMessage: result.errorMessage,
+    });
+    const open = await findOpenIncident(tx, targetId);
+    const transition = applyCheckResult(
+      {
+        consecutiveFailures: locked.consecutiveFailures,
+        consecutiveSuccesses: locked.consecutiveSuccesses,
+        hasOpenIncident: open !== undefined,
+      },
+      result.success,
+      { grace: locked.graceThreshold, recovery: locked.recoveryThreshold },
+    );
+    const lastStatus = transition.counters.hasOpenIncident ? 'down' : result.success ? 'up' : locked.lastStatus;
+    await updateTargetAfterCheck(tx, targetId, {
+      lastCheckedAt: checkedAt,
+      lastStatus,
+      consecutiveFailures: transition.counters.consecutiveFailures,
+      consecutiveSuccesses: transition.counters.consecutiveSuccesses,
+      now: checkedAt,
+    });
+    if (transition.action === 'open') {
+      await insertOpenIncident(tx, {
+        targetId,
+        openedAt: checkedAt,
+        triggerCheckId: inserted.id,
+      });
+    } else if (transition.action === 'resolve' && open) {
+      await resolveIncident(tx, open.id, { resolvedAt: checkedAt, resolveCheckId: inserted.id });
+    }
+    return inserted;
+  });
+}
+
 export async function runClaimedCheck(deps: SchedulerDeps, target: TargetRow): Promise<void> {
   const host = hostnameOf(target.url);
   await deps.perHost.acquire(host);
@@ -68,25 +121,7 @@ export async function runClaimedCheck(deps: SchedulerDeps, target: TargetRow): P
       result = internalFailure(err);
     }
 
-    const check = await withTransaction(deps.pool, async (tx) => {
-      const locked = await lockTargetForUpdate(tx, target.id);
-      if (!locked) return undefined;
-      const inserted = await insertCheck(tx, {
-        targetId: target.id,
-        checkedAt,
-        success: result.success,
-        statusCode: result.statusCode,
-        latencyMs: result.latencyMs,
-        errorCode: result.errorCode,
-        errorMessage: result.errorMessage,
-      });
-      await updateTargetAfterCheck(tx, target.id, {
-        lastCheckedAt: checkedAt,
-        lastStatus: result.success ? 'up' : 'down',
-        now: checkedAt,
-      });
-      return inserted;
-    });
+    const check = await persistCheck(deps.pool, target.id, checkedAt, result);
 
     log.info(
       {

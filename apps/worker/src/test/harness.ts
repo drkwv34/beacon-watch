@@ -45,7 +45,14 @@ export async function resetDb(pool: DbPool): Promise<void> {
 export async function seedDueTarget(
   pool: DbPool,
   now: Date,
-  overrides: { url?: string; timeoutMs?: number; expectedStatus?: number; intervalSeconds?: number } = {},
+  overrides: {
+    url?: string;
+    timeoutMs?: number;
+    expectedStatus?: number;
+    intervalSeconds?: number;
+    graceThreshold?: number;
+    recoveryThreshold?: number;
+  } = {},
 ): Promise<TargetRow> {
   const user = await insertUser(pool, {
     email: `owner-${crypto.randomUUID()}@example.com`,
@@ -61,8 +68,8 @@ export async function seedDueTarget(
     expectedStatus: overrides.expectedStatus ?? 200,
     headers: null,
     body: null,
-    graceThreshold: 2,
-    recoveryThreshold: 2,
+    graceThreshold: overrides.graceThreshold ?? 2,
+    recoveryThreshold: overrides.recoveryThreshold ?? 2,
     enabled: true,
     isPublic: false,
     publicSlug: null,
