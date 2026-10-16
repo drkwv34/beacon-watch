@@ -58,8 +58,8 @@ export function parseCookies(setCookie: string | string[] | undefined): {
   };
 }
 
-export async function buildTestApp(opts: { lookup?: LookupFn; config?: ApiConfig; pool: DbPool }) {
+export async function buildTestApp(opts: { lookup?: LookupFn; config?: ApiConfig; pool: DbPool; now?: () => Date }) {
   const config = opts.config ?? testConfig();
   const lookup = opts.lookup ?? (async () => ['93.184.216.34']);
-  return buildApp(config, { pool: opts.pool, lookup });
+  return buildApp(config, { pool: opts.pool, lookup, ...(opts.now ? { now: opts.now } : {}) });
 }

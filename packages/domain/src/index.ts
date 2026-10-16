@@ -1,5 +1,6 @@
 export * from './errors.js';
 export * from './ids.js';
+export * from './incidents/machine.js';
 export * from './probe.js';
 export * from './scheduling.js';
 export * from './ssrf.js';

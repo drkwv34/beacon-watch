@@ -9,6 +9,8 @@ import { AuthService } from './modules/auth/service.js';
 import { assertCsrf, registerProtectedAuthRoutes, registerPublicAuthRoutes } from './modules/auth/routes.js';
 import { TargetService } from './modules/targets/service.js';
 import { registerTargetRoutes } from './modules/targets/routes.js';
+import { IncidentService } from './modules/incidents/service.js';
+import { registerIncidentRoutes } from './modules/incidents/routes.js';
 
 export const REDACT_PATHS = ['req.headers.authorization', 'req.headers.cookie', 'res.headers["set-cookie"]'];
 
@@ -90,6 +92,7 @@ export async function buildApp(
     const lookup = deps.lookup ?? systemLookup;
     const auth = new AuthService(deps.pool, fullConfig, deps.now, deps.randomBytes);
     const targets = new TargetService(deps.pool, fullConfig, lookup, deps.now);
+    const incidents = new IncidentService(deps.pool, deps.now);
 
     app.get('/readyz', async () => {
       try {
@@ -119,6 +122,7 @@ export async function buildApp(
           });
           await registerProtectedAuthRoutes(protectedApi, auth, fullConfig);
           await registerTargetRoutes(protectedApi, targets);
+          await registerIncidentRoutes(protectedApi, incidents);
           protectedApi.all('/*', async () => {
             throw new DomainError('NOT_FOUND', 'Route not found');
           });

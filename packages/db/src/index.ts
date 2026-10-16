@@ -32,3 +32,13 @@ export {
   mapCheck,
   type CheckRow,
 } from './repositories/checks.js';
+export {
+  insertOpenIncident,
+  findOpenIncident,
+  resolveIncident,
+  listIncidentsForTarget,
+  mapIncident,
+  toPublicIncident,
+  OPEN_INCIDENT_INDEX,
+  type IncidentRow,
+} from './repositories/incidents.js';
