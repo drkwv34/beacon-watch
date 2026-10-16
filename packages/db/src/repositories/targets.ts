@@ -290,11 +290,24 @@ export async function lockTargetForUpdate(db: Queryable, id: TargetId): Promise<
 export async function updateTargetAfterCheck(
   db: Queryable,
   id: TargetId,
-  patch: { lastCheckedAt: Date; lastStatus: TargetStatus; now: Date },
+  patch: {
+    lastCheckedAt: Date;
+    lastStatus: TargetStatus;
+    consecutiveFailures: number;
+    consecutiveSuccesses: number;
+    now: Date;
+  },
 ): Promise<TargetRow | undefined> {
   const { rows } = await db.query<TargetRecord>(
-    `UPDATE targets SET last_checked_at = $2, last_status = $3, updated_at = $4 WHERE id = $1 RETURNING *`,
-    [id, patch.lastCheckedAt, patch.lastStatus, patch.now],
+    `UPDATE targets SET
+       last_checked_at = $2,
+       last_status = $3,
+       consecutive_failures = $4,
+       consecutive_successes = $5,
+       updated_at = $6
+     WHERE id = $1
+     RETURNING *`,
+    [id, patch.lastCheckedAt, patch.lastStatus, patch.consecutiveFailures, patch.consecutiveSuccesses, patch.now],
   );
   const row = rows[0];
   return row ? mapTarget(row) : undefined;
