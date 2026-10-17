@@ -1,4 +1,5 @@
 import { createPool, migrate, type DbPool } from '@beacon-watch/db';
+import type { Redis } from 'ioredis';
 import { buildApp } from '../app.js';
 import { loadConfig, type ApiConfig } from '../config.js';
 import type { LookupFn } from '../lookup.js';
@@ -20,6 +21,7 @@ export function testConfig(overrides: Record<string, string> = {}): ApiConfig {
     LOG_LEVEL: 'silent',
     DATABASE_URL: requireDatabaseUrl() || 'postgres://beacon:beacon@localhost:5432/beacon',
     SESSION_SECRET: 'replace-me-with-at-least-32-random-characters',
+    REDIS_URL: process.env.REDIS_URL || 'redis://127.0.0.1:6379',
     SSRF_PROTECTION: 'true',
     ...overrides,
   });
@@ -58,8 +60,30 @@ export function parseCookies(setCookie: string | string[] | undefined): {
   };
 }
 
-export async function buildTestApp(opts: { lookup?: LookupFn; config?: ApiConfig; pool: DbPool; now?: () => Date }) {
+export function requireRedisUrl(): string {
+  const url = process.env.REDIS_URL;
+  if (!url) {
+    if (process.env.CI) {
+      throw new Error('REDIS_URL is required in CI for integration tests');
+    }
+    return '';
+  }
+  return url;
+}
+
+export async function buildTestApp(opts: {
+  lookup?: LookupFn;
+  config?: ApiConfig;
+  pool: DbPool;
+  now?: () => Date;
+  redis?: Redis;
+}) {
   const config = opts.config ?? testConfig();
   const lookup = opts.lookup ?? (async () => ['93.184.216.34']);
-  return buildApp(config, { pool: opts.pool, lookup, ...(opts.now ? { now: opts.now } : {}) });
+  return buildApp(config, {
+    pool: opts.pool,
+    lookup,
+    ...(opts.now ? { now: opts.now } : {}),
+    ...(opts.redis ? { redis: opts.redis } : {}),
+  });
 }

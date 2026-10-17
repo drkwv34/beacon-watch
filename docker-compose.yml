@@ -8,6 +8,8 @@ x-app-env: &app-env
   LOG_LEVEL: ${LOG_LEVEL:-info}
   DATABASE_URL: postgresql://${POSTGRES_USER:-beacon}:${POSTGRES_PASSWORD:-beacon-local-only}@db:5432/${POSTGRES_DB:-beacon}
   REDIS_URL: redis://redis:6379
+  REDIS_CONNECT_TIMEOUT_MS: ${REDIS_CONNECT_TIMEOUT_MS:-200}
+  REDIS_COMMAND_TIMEOUT_MS: ${REDIS_COMMAND_TIMEOUT_MS:-200}
 
 services:
   db:
@@ -61,6 +63,8 @@ services:
       SESSION_SECRET: ${SESSION_SECRET:-replace-me-with-at-least-32-random-characters}
       SESSION_TTL_SECONDS: ${SESSION_TTL_SECONDS:-604800}
       PUBLIC_RATE_LIMIT_PER_MIN: ${PUBLIC_RATE_LIMIT_PER_MIN:-60}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+      PUBLIC_CORS_ORIGINS: ${PUBLIC_CORS_ORIGINS:-}
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
       SSRF_PROTECTION: ${SSRF_PROTECTION:-true}
       SSRF_ALLOWLIST: ${SSRF_ALLOWLIST:-mock-target}

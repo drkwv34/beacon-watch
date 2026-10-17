@@ -1,12 +1,17 @@
 import cookie from '@fastify/cookie';
 import Fastify, { type FastifyInstance } from 'fastify';
+import type { Redis } from 'ioredis';
 import { DomainError, isDomainError, type ErrorCode } from '@beacon-watch/domain';
 import type { DbPool } from '@beacon-watch/db';
+import { RedisCache } from './cache/redis-cache.js';
+import { RedisRateLimiter, type RateLimiter } from './cache/rate-limiter.js';
 import type { ApiConfig } from './config.js';
 import { SESSION_COOKIE } from './cookies.js';
 import { systemLookup, type LookupFn } from './lookup.js';
 import { AuthService } from './modules/auth/service.js';
 import { assertCsrf, registerProtectedAuthRoutes, registerPublicAuthRoutes } from './modules/auth/routes.js';
+import { PublicStatusService } from './modules/public-status/service.js';
+import { registerPublicStatusRoutes } from './modules/public-status/routes.js';
 import { TargetService } from './modules/targets/service.js';
 import { registerTargetRoutes } from './modules/targets/routes.js';
 import { IncidentService } from './modules/incidents/service.js';
@@ -34,6 +39,9 @@ export interface AppDeps {
   lookup?: LookupFn;
   now?: () => Date;
   randomBytes?: (size: number) => Buffer;
+  redis?: Redis;
+  cache?: RedisCache;
+  rateLimiter?: RateLimiter;
 }
 
 export async function buildApp(
@@ -44,6 +52,7 @@ export async function buildApp(
     logger: { level: config.LOG_LEVEL, redact: REDACT_PATHS },
     genReqId: () => crypto.randomUUID(),
     requestIdHeader: 'x-request-id',
+    trustProxy: config.TRUST_PROXY ?? false,
   });
 
   app.addHook('onSend', async (request, reply) => {
@@ -90,9 +99,17 @@ export async function buildApp(
   if (deps) {
     const fullConfig = config as ApiConfig;
     const lookup = deps.lookup ?? systemLookup;
-    const auth = new AuthService(deps.pool, fullConfig, deps.now, deps.randomBytes);
-    const targets = new TargetService(deps.pool, fullConfig, lookup, deps.now);
-    const incidents = new IncidentService(deps.pool, deps.now);
+    const now = deps.now ?? (() => new Date());
+    const cache =
+      deps.cache ??
+      (deps.redis ? new RedisCache(deps.redis, { warn: (obj, msg) => app.log.warn(obj, msg) }) : undefined);
+    const rateLimiter =
+      deps.rateLimiter ??
+      (deps.redis ? new RedisRateLimiter(deps.redis, fullConfig.PUBLIC_RATE_LIMIT_PER_MIN) : undefined);
+    const auth = new AuthService(deps.pool, fullConfig, now, deps.randomBytes);
+    const targets = new TargetService(deps.pool, fullConfig, lookup, now, cache);
+    const incidents = new IncidentService(deps.pool, now);
+    const publicStatus = new PublicStatusService(deps.pool, cache, now);
 
     app.get('/readyz', async () => {
       try {
@@ -100,7 +117,11 @@ export async function buildApp(
       } catch {
         throw new DomainError('DEPENDENCY_UNAVAILABLE', 'Postgres is unavailable');
       }
-      return { status: 'ok', postgres: 'ok' };
+      const redisOk = cache ? await cache.ping() : false;
+      if (!redisOk) {
+        return { status: 'degraded', postgres: 'ok', redis: 'unavailable' };
+      }
+      return { status: 'ok', postgres: 'ok', redis: 'ok' };
     });
 
     await app.register(
@@ -129,6 +150,18 @@ export async function buildApp(
         });
       },
       { prefix: '/api/v1' },
+    );
+
+    await app.register(
+      async (pub) => {
+        await registerPublicStatusRoutes(pub, {
+          service: publicStatus,
+          rateLimiter,
+          corsOrigins: fullConfig.PUBLIC_CORS_ORIGINS,
+          now,
+        });
+      },
+      { prefix: '/api/public/v1' },
     );
   }
 

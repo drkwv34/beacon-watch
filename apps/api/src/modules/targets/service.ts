@@ -19,6 +19,7 @@ import {
   type DbPool,
   type TargetRow,
 } from '@beacon-watch/db';
+import type { RedisCache } from '../../cache/redis-cache.js';
 import type { ApiConfig } from '../../config.js';
 import { assertUrlAllowed, type LookupFn } from '../../lookup.js';
 
@@ -42,6 +43,7 @@ export class TargetService {
     private readonly config: ApiConfig,
     private readonly lookup: LookupFn,
     private readonly now: () => Date = () => new Date(),
+    private readonly cache: RedisCache | undefined = undefined,
   ) {}
 
   async create(userId: UserId, input: TargetInput): Promise<TargetRow> {
@@ -103,7 +105,7 @@ export class TargetService {
     const validated = validateTargetInput(merged);
     await assertUrlAllowed(validated.url, this.config, this.lookup);
     const now = this.now();
-    return withTransaction(this.pool, async (tx) =>
+    const row = await withTransaction(this.pool, async (tx) =>
       updateTarget(tx, existing.id, {
         name: validated.name,
         url: validated.url,
@@ -121,10 +123,13 @@ export class TargetService {
         now,
       }),
     );
+    await this.cache?.invalidateTarget(existing.id, [existing.publicSlug, row.publicSlug]);
+    return row;
   }
 
   async remove(userId: UserId, id: string): Promise<void> {
     const existing = await loadOwned(this.pool, userId, id);
     await deleteTarget(this.pool, existing.id);
+    await this.cache?.invalidateTarget(existing.id, [existing.publicSlug]);
   }
 }

@@ -1,6 +1,6 @@
 # Caching and rate limits
 
-Redis holds nothing that cannot be recomputed from Postgres. Scaffold status: Compose service only; behavior below lands on Day 5.
+Redis holds nothing that cannot be recomputed from Postgres. Keys, TTLs, and failure modes below are implemented in the API and worker.
 
 ## Keys
 
