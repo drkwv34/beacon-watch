@@ -12,6 +12,7 @@
   "dependencies": {
     "@beacon-watch/db": "workspace:*",
     "@beacon-watch/domain": "workspace:*",
+    "ioredis": "^6.0.0",
     "pino": "^10.3.1",
     "undici": "^7.30.0",
     "zod": "^4.6.5"
