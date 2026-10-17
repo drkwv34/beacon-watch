@@ -180,6 +180,14 @@ export async function findTargetById(db: Queryable, id: TargetId): Promise<Targe
   return row ? mapTarget(row) : undefined;
 }
 
+export async function findPublicTargetBySlug(db: Queryable, slug: string): Promise<TargetRow | undefined> {
+  const { rows } = await db.query<TargetRecord>(`SELECT * FROM targets WHERE public_slug = $1 AND is_public = true`, [
+    slug,
+  ]);
+  const row = rows[0];
+  return row ? mapTarget(row) : undefined;
+}
+
 export async function listTargetsForUser(db: Queryable, userId: UserId, opts: { limit: number }): Promise<TargetRow[]> {
   const { rows } = await db.query<TargetRecord>(
     `SELECT * FROM targets WHERE user_id = $1 ORDER BY created_at ASC, id ASC LIMIT $2`,

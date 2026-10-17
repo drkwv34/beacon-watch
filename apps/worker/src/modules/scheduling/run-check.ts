@@ -11,8 +11,15 @@ import {
   type DbPool,
   type TargetRow,
 } from '@beacon-watch/db';
-import { applyCheckResult, truncateErrorMessage, type ProbeErrorCode, type TargetId } from '@beacon-watch/domain';
+import {
+  applyCheckResult,
+  truncateErrorMessage,
+  type ProbeErrorCode,
+  type TargetId,
+  type TargetStatus,
+} from '@beacon-watch/domain';
 import type { Logger } from 'pino';
+import type { RedisCache } from '../../cache/redis-cache.js';
 import type { ProbeClient, ProbeOutcome, ProbeTarget } from '../../probe/client.js';
 import type { HostSemaphore, Semaphore } from '../../pool/semaphore.js';
 
@@ -26,6 +33,7 @@ export interface SchedulerDeps {
   random: () => number;
   sleep: (ms: number) => Promise<void>;
   pollMs: number;
+  cache?: RedisCache;
 }
 
 function hostnameOf(url: string): string {
@@ -63,11 +71,17 @@ export async function persistCheck(
   targetId: TargetId,
   checkedAt: Date,
   result: ProbeOutcome,
+  cache?: RedisCache,
 ): Promise<CheckRow | undefined> {
-  return withTransaction(pool, async (tx) => {
+  let slug: string | null = null;
+  let intervalSeconds = 60;
+  let lastStatus: TargetStatus = 'unknown';
+  const inserted = await withTransaction(pool, async (tx) => {
     const locked = await lockTargetForUpdate(tx, targetId);
     if (!locked) return undefined;
-    const inserted = await insertCheck(tx, {
+    slug = locked.publicSlug;
+    intervalSeconds = locked.intervalSeconds;
+    const check = await insertCheck(tx, {
       targetId,
       checkedAt,
       success: result.success,
@@ -86,7 +100,7 @@ export async function persistCheck(
       result.success,
       { grace: locked.graceThreshold, recovery: locked.recoveryThreshold },
     );
-    const lastStatus = transition.counters.hasOpenIncident ? 'down' : result.success ? 'up' : locked.lastStatus;
+    lastStatus = transition.counters.hasOpenIncident ? 'down' : result.success ? 'up' : locked.lastStatus;
     await updateTargetAfterCheck(tx, targetId, {
       lastCheckedAt: checkedAt,
       lastStatus,
@@ -98,13 +112,25 @@ export async function persistCheck(
       await insertOpenIncident(tx, {
         targetId,
         openedAt: checkedAt,
-        triggerCheckId: inserted.id,
+        triggerCheckId: check.id,
       });
     } else if (transition.action === 'resolve' && open) {
-      await resolveIncident(tx, open.id, { resolvedAt: checkedAt, resolveCheckId: inserted.id });
+      await resolveIncident(tx, open.id, { resolvedAt: checkedAt, resolveCheckId: check.id });
     }
-    return inserted;
+    return check;
   });
+  if (inserted && cache) {
+    await cache.writeLatest({
+      targetId,
+      intervalSeconds,
+      status: lastStatus,
+      lastCheckedAt: checkedAt,
+      latencyMs: result.latencyMs,
+      success: result.success,
+    });
+    await cache.invalidateStatusPage(slug);
+  }
+  return inserted;
 }
 
 export async function runClaimedCheck(deps: SchedulerDeps, target: TargetRow): Promise<void> {
@@ -121,7 +147,7 @@ export async function runClaimedCheck(deps: SchedulerDeps, target: TargetRow): P
       result = internalFailure(err);
     }
 
-    const check = await persistCheck(deps.pool, target.id, checkedAt, result);
+    const check = await persistCheck(deps.pool, target.id, checkedAt, result, deps.cache);
 
     log.info(
       {

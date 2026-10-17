@@ -87,3 +87,27 @@ export async function countChecksForTarget(db: Queryable, targetId: TargetId): P
   ]);
   return Number(rows[0]?.n ?? 0);
 }
+
+export async function findLatestCheck(db: Queryable, targetId: TargetId): Promise<CheckRow | undefined> {
+  const { rows } = await db.query<CheckRecord>(
+    `SELECT * FROM checks WHERE target_id = $1 ORDER BY checked_at DESC, id DESC LIMIT 1`,
+    [targetId],
+  );
+  const row = rows[0];
+  return row ? mapCheck(row) : undefined;
+}
+
+export async function countChecksSince(
+  db: Queryable,
+  targetId: TargetId,
+  since: Date,
+): Promise<{ total: number; successes: number }> {
+  const { rows } = await db.query<{ total: string; successes: string }>(
+    `SELECT count(*)::text AS total,
+            count(*) FILTER (WHERE success)::text AS successes
+     FROM checks
+     WHERE target_id = $1 AND checked_at >= $2`,
+    [targetId, since],
+  );
+  return { total: Number(rows[0]?.total ?? 0), successes: Number(rows[0]?.successes ?? 0) };
+}

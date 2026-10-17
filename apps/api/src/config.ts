@@ -25,6 +25,20 @@ const ConfigSchema = z.object({
         .map((host) => host.trim().toLowerCase())
         .filter((host) => host.length > 0),
     ),
+  REDIS_URL: z.string().min(1),
+  REDIS_CONNECT_TIMEOUT_MS: z.coerce.number().int().min(50).max(5_000).default(200),
+  REDIS_COMMAND_TIMEOUT_MS: z.coerce.number().int().min(50).max(5_000).default(200),
+  PUBLIC_RATE_LIMIT_PER_MIN: z.coerce.number().int().min(1).max(10_000).default(60),
+  TRUST_PROXY: booleanFromEnv.default(false),
+  PUBLIC_CORS_ORIGINS: z
+    .string()
+    .default('')
+    .transform((value) =>
+      value
+        .split(',')
+        .map((origin) => origin.trim())
+        .filter((origin) => origin.length > 0),
+    ),
 });
 
 export type ApiConfig = z.infer<typeof ConfigSchema>;

@@ -1,12 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { loadConfig } from './config.js';
 
-const db = { DATABASE_URL: 'postgresql://beacon:beacon@localhost:5432/beacon' };
+const db = {
+  DATABASE_URL: 'postgresql://beacon:beacon@localhost:5432/beacon',
+  REDIS_URL: 'redis://127.0.0.1:6379',
+};
 
 describe('worker config', () => {
   it('defaults SSRF protection on and applies SRS concurrency limits', () => {
     const config = loadConfig(db);
     expect(config.SSRF_PROTECTION).toBe(true);
+    expect(config.REDIS_CONNECT_TIMEOUT_MS).toBe(200);
+    expect(config.REDIS_COMMAND_TIMEOUT_MS).toBe(200);
     expect(config.PROBE_MAX_CONCURRENCY).toBe(20);
     expect(config.PROBE_MAX_PER_HOST).toBe(2);
     expect(config.PROBE_INSECURE_TLS).toBe(false);
@@ -26,6 +31,6 @@ describe('worker config', () => {
   });
 
   it('requires DATABASE_URL', () => {
-    expect(() => loadConfig({})).toThrow('Invalid worker configuration: DATABASE_URL');
+    expect(() => loadConfig({})).toThrow('Invalid worker configuration: DATABASE_URL, REDIS_URL');
   });
 });

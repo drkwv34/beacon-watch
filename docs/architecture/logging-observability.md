@@ -19,5 +19,5 @@
 ## Health and metrics
 
 - `GET /healthz`: liveness, no dependencies, always cheap.
-- `GET /readyz`: checks Postgres and Redis and reports each (SRS §4.2). Postgres down → 503. Redis down → body marks it `degraded`; whether that is 200 or 503 is decided in the Day 5 caching change, given that status pages can still serve from Postgres.
+- `GET /readyz`: checks Postgres and Redis and reports each (SRS §4.2). Postgres down → 503. Redis down → 200 `{ status: 'degraded', postgres: 'ok', redis: 'unavailable' }` because checks and authenticated routes still work; the public JSON limiter still fails closed with 503 on that path.
 - Metrics (NFR-OBS-002, Should): `checks_total{success}`, `check_latency_ms` histogram, `open_incidents` gauge, `public_api_rate_limited_total`. Exposed by the API at `/metrics` in Prometheus text format.

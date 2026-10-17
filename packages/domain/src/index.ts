@@ -1,3 +1,6 @@
+export * from './cache/keys.js';
+export * from './cache/rate-limit.js';
+export * from './cache/status.js';
 export * from './errors.js';
 export * from './ids.js';
 export * from './incidents/machine.js';

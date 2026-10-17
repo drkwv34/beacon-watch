@@ -8,6 +8,17 @@ import type { ProbeClient } from '../probe/client.js';
 
 export { listenMockTarget };
 
+export function requireRedisUrl(): string {
+  const url = process.env.REDIS_URL;
+  if (!url) {
+    if (process.env.CI) {
+      throw new Error('REDIS_URL is required in CI for integration tests');
+    }
+    return '';
+  }
+  return url;
+}
+
 export function requireDatabaseUrl(): string {
   const url = process.env.DATABASE_URL;
   if (!url) {
@@ -24,6 +35,7 @@ export function testConfig(overrides: Record<string, string> = {}): WorkerConfig
     NODE_ENV: 'test',
     LOG_LEVEL: 'silent',
     DATABASE_URL: requireDatabaseUrl() || 'postgres://beacon:beacon@localhost:5432/beacon',
+    REDIS_URL: process.env.REDIS_URL || 'redis://127.0.0.1:6379',
     SSRF_PROTECTION: 'false',
     PROBE_MAX_CONCURRENCY: '4',
     PROBE_MAX_PER_HOST: '2',
@@ -52,6 +64,8 @@ export async function seedDueTarget(
     intervalSeconds?: number;
     graceThreshold?: number;
     recoveryThreshold?: number;
+    isPublic?: boolean;
+    publicSlug?: string | null;
   } = {},
 ): Promise<TargetRow> {
   const user = await insertUser(pool, {
@@ -71,8 +85,8 @@ export async function seedDueTarget(
     graceThreshold: overrides.graceThreshold ?? 2,
     recoveryThreshold: overrides.recoveryThreshold ?? 2,
     enabled: true,
-    isPublic: false,
-    publicSlug: null,
+    isPublic: overrides.isPublic ?? false,
+    publicSlug: overrides.publicSlug ?? null,
     now,
   });
 }

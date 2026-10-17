@@ -7,6 +7,7 @@ const config = loadConfig({
   LOG_LEVEL: 'silent',
   DATABASE_URL: 'postgres://unused:unused@localhost:5432/unused',
   SESSION_SECRET: 'replace-me-with-at-least-32-random-characters',
+  REDIS_URL: 'redis://127.0.0.1:6379',
 });
 
 const pool = {

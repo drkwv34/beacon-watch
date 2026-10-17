@@ -13,8 +13,10 @@
     "@beacon-watch/db": "workspace:*",
     "@beacon-watch/domain": "workspace:*",
     "@fastify/cookie": "^11.0.2",
+    "@fastify/cors": "^11.3.1",
     "@node-rs/argon2": "^2.0.2",
     "fastify": "^5.12.5",
+    "ioredis": "^6.0.0",
     "zod": "^4.6.5"
   }
 }
