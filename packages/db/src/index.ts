@@ -14,6 +14,7 @@ export {
 export {
   insertTarget,
   findTargetById,
+  findPublicTargetBySlug,
   listTargetsForUser,
   countTargetsForUser,
   updateTarget,
@@ -29,6 +30,8 @@ export {
   insertCheck,
   listChecksForTarget,
   countChecksForTarget,
+  findLatestCheck,
+  countChecksSince,
   mapCheck,
   type CheckRow,
 } from './repositories/checks.js';
