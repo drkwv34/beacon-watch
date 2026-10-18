@@ -21,6 +21,7 @@ export {
   deleteTarget,
   claimDueTargets,
   lockTargetForUpdate,
+  setNextCheckAt,
   updateTargetAfterCheck,
   mapTarget,
   toPublicTarget,
@@ -29,10 +30,13 @@ export {
 export {
   insertCheck,
   listChecksForTarget,
+  latestLatencyByTargetIds,
   countChecksForTarget,
+  countSuccessfulChecksForTarget,
   findLatestCheck,
   countChecksSince,
   mapCheck,
+  toPublicCheck,
   type CheckRow,
 } from './repositories/checks.js';
 export {
@@ -42,6 +46,7 @@ export {
   listIncidentsForTarget,
   mapIncident,
   toPublicIncident,
+  toPublicRecentIncident,
   OPEN_INCIDENT_INDEX,
   type IncidentRow,
 } from './repositories/incidents.js';

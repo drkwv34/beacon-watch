@@ -73,18 +73,66 @@ export async function insertCheck(
   return mapCheck(rows[0]!);
 }
 
-export async function listChecksForTarget(db: Queryable, targetId: TargetId): Promise<CheckRow[]> {
+export function toPublicCheck(row: CheckRow): Record<string, unknown> {
+  return {
+    id: row.id,
+    checked_at: row.checkedAt.toISOString(),
+    success: row.success,
+    status_code: row.statusCode,
+    latency_ms: row.latencyMs,
+    error_code: row.errorCode,
+    error_message: row.errorMessage,
+  };
+}
+
+export async function listChecksForTarget(
+  db: Queryable,
+  targetId: TargetId,
+  opts: { limit?: number } = {},
+): Promise<CheckRow[]> {
+  if (opts.limit === undefined) {
+    const { rows } = await db.query<CheckRecord>(
+      `SELECT * FROM checks WHERE target_id = $1 ORDER BY checked_at DESC, id DESC`,
+      [targetId],
+    );
+    return rows.map(mapCheck);
+  }
   const { rows } = await db.query<CheckRecord>(
-    `SELECT * FROM checks WHERE target_id = $1 ORDER BY checked_at DESC, id DESC`,
-    [targetId],
+    `SELECT * FROM checks WHERE target_id = $1 ORDER BY checked_at DESC, id DESC LIMIT $2`,
+    [targetId, opts.limit],
   );
   return rows.map(mapCheck);
+}
+
+export async function latestLatencyByTargetIds(db: Queryable, ids: TargetId[]): Promise<Map<TargetId, number | null>> {
+  const result = new Map<TargetId, number | null>();
+  for (const id of ids) result.set(id, null);
+  if (ids.length === 0) return result;
+  const { rows } = await db.query<{ target_id: string; latency_ms: number | null }>(
+    `SELECT DISTINCT ON (target_id) target_id, latency_ms
+     FROM checks
+     WHERE target_id = ANY($1::uuid[])
+     ORDER BY target_id, checked_at DESC, id DESC`,
+    [ids],
+  );
+  for (const row of rows) {
+    result.set(asTargetId(row.target_id), row.latency_ms);
+  }
+  return result;
 }
 
 export async function countChecksForTarget(db: Queryable, targetId: TargetId): Promise<number> {
   const { rows } = await db.query<{ n: string }>(`SELECT count(*)::text AS n FROM checks WHERE target_id = $1`, [
     targetId,
   ]);
+  return Number(rows[0]?.n ?? 0);
+}
+
+export async function countSuccessfulChecksForTarget(db: Queryable, targetId: TargetId): Promise<number> {
+  const { rows } = await db.query<{ n: string }>(
+    `SELECT count(*)::text AS n FROM checks WHERE target_id = $1 AND success`,
+    [targetId],
+  );
   return Number(rows[0]?.n ?? 0);
 }
 

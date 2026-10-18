@@ -1,8 +1,14 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { DbPool } from '../index.js';
 import { insertUser } from './users.js';
-import { findPublicTargetBySlug, insertTarget } from './targets.js';
-import { countChecksSince, findLatestCheck, insertCheck } from './checks.js';
+import { findPublicTargetBySlug, insertTarget, setNextCheckAt } from './targets.js';
+import {
+  countChecksSince,
+  countSuccessfulChecksForTarget,
+  findLatestCheck,
+  insertCheck,
+  latestLatencyByTargetIds,
+} from './checks.js';
 import { openTestPool, requireDatabaseUrl, resetDb } from '../test/harness.js';
 
 const skip = !requireDatabaseUrl();
@@ -101,5 +107,11 @@ describe.skipIf(skip)('public status queries', () => {
 
     const since = new Date('2026-10-15T12:00:00.000Z');
     expect(await countChecksSince(pool, publicTarget.id, since)).toEqual({ total: 2, successes: 1 });
+    expect(await countSuccessfulChecksForTarget(pool, publicTarget.id)).toBe(2);
+    expect(await latestLatencyByTargetIds(pool, [publicTarget.id])).toEqual(new Map([[publicTarget.id, 11]]));
+
+    const due = new Date('2026-10-16T12:00:01.000Z');
+    const scheduled = await setNextCheckAt(pool, publicTarget.id, due, due);
+    expect(scheduled?.nextCheckAt).toEqual(due);
   });
 });

@@ -88,7 +88,7 @@ export function mapTarget(row: TargetRecord): TargetRow {
   };
 }
 
-export function toPublicTarget(row: TargetRow): Record<string, unknown> {
+export function toPublicTarget(row: TargetRow, extras: { latencyMs?: number | null } = {}): Record<string, unknown> {
   return {
     id: row.id,
     name: row.name,
@@ -106,6 +106,7 @@ export function toPublicTarget(row: TargetRow): Record<string, unknown> {
     public_slug: row.publicSlug,
     last_status: row.enabled ? row.lastStatus : 'paused',
     last_checked_at: row.lastCheckedAt ? row.lastCheckedAt.toISOString() : null,
+    latency_ms: extras.latencyMs ?? null,
     created_at: row.createdAt.toISOString(),
     updated_at: row.updatedAt.toISOString(),
   };
@@ -287,6 +288,20 @@ export async function claimDueTargets(
     claimed.push(mapTarget(updated.rows[0]!));
   }
   return claimed;
+}
+
+export async function setNextCheckAt(
+  db: Queryable,
+  id: TargetId,
+  nextCheckAt: Date,
+  now: Date,
+): Promise<TargetRow | undefined> {
+  const { rows } = await db.query<TargetRecord>(
+    `UPDATE targets SET next_check_at = $2, updated_at = $3 WHERE id = $1 RETURNING *`,
+    [id, nextCheckAt, now],
+  );
+  const row = rows[0];
+  return row ? mapTarget(row) : undefined;
 }
 
 export async function lockTargetForUpdate(db: Queryable, id: TargetId): Promise<TargetRow | undefined> {
