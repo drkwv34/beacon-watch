@@ -6,7 +6,7 @@ export default defineConfig({
   resolve: { conditions },
   ssr: { resolve: { conditions, externalConditions: conditions } },
   test: {
-    include: ['{apps,packages}/*/src/**/*.test.ts'],
+    include: ['{apps,packages}/*/src/**/*.test.{ts,tsx}'],
     passWithNoTests: false,
     fileParallelism: false,
   },

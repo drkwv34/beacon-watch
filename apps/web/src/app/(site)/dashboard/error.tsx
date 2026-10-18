@@ -1,6 +1,6 @@
 'use client';
 
-import { StatePanel } from '../../components/state-panel';
+import { StatePanel } from '../../../components/state-panel';
 
 export default function DashboardError({ error, reset }: { error: Error; reset: () => void }) {
   return (

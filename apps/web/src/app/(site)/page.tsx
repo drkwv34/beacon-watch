@@ -1,11 +1,11 @@
-import { StatePanel } from '../components/state-panel';
+import { StatePanel } from '../../components/state-panel';
 
 export default function HomePage() {
   return (
     <StatePanel
       tone="neutral"
       title="beacon-watch"
-      body="Sign in to add HTTP monitors. Public status pages land in a later milestone."
+      body="Sign in to add HTTP monitors, or open a public status page at /s/{slug}."
       action={
         <span className="cta-row">
           <a className="button" href="/login">
