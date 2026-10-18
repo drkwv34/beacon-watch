@@ -11,9 +11,13 @@ import {
 import {
   countTargetsForUser,
   deleteTarget,
+  findLatestCheck,
   findTargetById,
   insertTarget,
+  latestLatencyByTargetIds,
   listTargetsForUser,
+  setNextCheckAt,
+  toPublicTarget,
   updateTarget,
   withTransaction,
   type DbPool,
@@ -77,12 +81,28 @@ export class TargetService {
     });
   }
 
-  async list(userId: UserId, limit: number): Promise<TargetRow[]> {
-    return listTargetsForUser(this.pool, userId, { limit });
+  async list(userId: UserId, limit: number): Promise<Record<string, unknown>[]> {
+    const rows = await listTargetsForUser(this.pool, userId, { limit });
+    const latencies = await latestLatencyByTargetIds(
+      this.pool,
+      rows.map((row) => row.id),
+    );
+    return rows.map((row) => toPublicTarget(row, { latencyMs: latencies.get(row.id) ?? null }));
   }
 
-  async get(userId: UserId, id: string): Promise<TargetRow> {
-    return loadOwned(this.pool, userId, id);
+  async get(userId: UserId, id: string): Promise<Record<string, unknown>> {
+    return this.toJson(await loadOwned(this.pool, userId, id));
+  }
+
+  async checkNow(userId: UserId, id: string): Promise<Record<string, unknown>> {
+    const existing = await loadOwned(this.pool, userId, id);
+    const now = this.now();
+    const row = await withTransaction(this.pool, async (tx) => {
+      const updated = await setNextCheckAt(tx, existing.id, now, now);
+      if (!updated) throw new DomainError('NOT_FOUND', 'Target not found');
+      return updated;
+    });
+    return this.toJson(row);
   }
 
   async update(userId: UserId, id: string, patch: TargetPatch): Promise<TargetRow> {
@@ -131,5 +151,10 @@ export class TargetService {
     const existing = await loadOwned(this.pool, userId, id);
     await deleteTarget(this.pool, existing.id);
     await this.cache?.invalidateTarget(existing.id, [existing.publicSlug]);
+  }
+
+  private async toJson(row: TargetRow): Promise<Record<string, unknown>> {
+    const latest = await findLatestCheck(this.pool, row.id);
+    return toPublicTarget(row, { latencyMs: latest?.latencyMs ?? null });
   }
 }

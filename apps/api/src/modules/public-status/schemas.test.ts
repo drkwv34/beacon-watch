@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { PublicStatusBody } from './schemas.js';
 
+const additive = {
+  check_count: 0,
+  ever_succeeded: false,
+  recent_incidents: [] as [],
+};
+
 describe('PublicStatusBody contract (SRS Appendix A)', () => {
   it('accepts an up payload with null incident', () => {
     expect(
@@ -11,8 +17,11 @@ describe('PublicStatusBody contract (SRS Appendix A)', () => {
         latency_ms: 42,
         uptime_24h: 0.997,
         open_incident: null,
+        ...additive,
+        check_count: 10,
+        ever_succeeded: true,
       }),
-    ).toMatchObject({ name: 'Portfolio demo API', status: 'up', latency_ms: 42 });
+    ).toMatchObject({ name: 'Portfolio demo API', status: 'up', latency_ms: 42, ever_succeeded: true });
   });
 
   it('accepts a down payload with an open incident', () => {
@@ -27,6 +36,17 @@ describe('PublicStatusBody contract (SRS Appendix A)', () => {
           opened_at: '2026-09-24T21:04:00.000Z',
           duration_seconds: 60,
         },
+        ...additive,
+        check_count: 8,
+        ever_succeeded: true,
+        recent_incidents: [
+          {
+            opened_at: '2026-09-24T21:04:00.000Z',
+            resolved_at: null,
+            duration_seconds: 60,
+            status: 'open',
+          },
+        ],
       }),
     ).toMatchObject({
       status: 'down',
@@ -42,8 +62,10 @@ describe('PublicStatusBody contract (SRS Appendix A)', () => {
       latency_ms: null,
       uptime_24h: null,
       open_incident: null,
+      ...additive,
     });
     expect(parsed).not.toHaveProperty('id');
     expect(parsed).not.toHaveProperty('url');
+    expect(parsed.recent_incidents[0]).toBeUndefined();
   });
 });

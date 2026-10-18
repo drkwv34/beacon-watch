@@ -128,6 +128,9 @@ describe.skipIf(skip)('public status API', () => {
       latency_ms: 42,
       uptime_24h: 1,
       open_incident: null,
+      check_count: 1,
+      ever_succeeded: true,
+      recent_incidents: [],
     });
     expect(body).not.toHaveProperty('id');
     expect(body).not.toHaveProperty('url');
@@ -180,7 +183,46 @@ describe.skipIf(skip)('public status API', () => {
       latency_ms: null,
       uptime_24h: null,
       open_incident: null,
+      check_count: 0,
+      ever_succeeded: false,
+      recent_incidents: [],
     });
+  });
+
+  it('reports never-succeeded after only failed checks and lists recent incidents without ids', async () => {
+    const { id } = await createPublicTarget('fail-demo');
+    const openedAt = new Date('2026-10-16T11:04:00.000Z');
+    const trip = await insertCheck(pool, {
+      targetId: id,
+      checkedAt: openedAt,
+      success: false,
+      statusCode: 500,
+      latencyMs: null,
+      errorCode: 'UNEXPECTED_STATUS',
+      errorMessage: 'status 500',
+    });
+    await updateTargetAfterCheck(pool, id, {
+      lastCheckedAt: openedAt,
+      lastStatus: 'down',
+      consecutiveFailures: 2,
+      consecutiveSuccesses: 0,
+      now: openedAt,
+    });
+    await insertOpenIncident(pool, { targetId: id, openedAt, triggerCheckId: trip.id });
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/public/v1/status/fail-demo',
+      remoteAddress: nextIp(),
+    });
+    expect(res.statusCode).toBe(200);
+    const body = PublicStatusBody.parse(res.json());
+    expect(body).toMatchObject({
+      check_count: 1,
+      ever_succeeded: false,
+      recent_incidents: [{ status: 'open', opened_at: openedAt.toISOString(), resolved_at: null }],
+    });
+    expect(JSON.stringify(body.recent_incidents)).not.toMatch(/id/);
+    expect(body).not.toHaveProperty('url');
   });
 
   it('returns identical 404 bodies for private, slugless, and unknown slugs', async () => {
@@ -342,6 +384,9 @@ describe.skipIf(skip)('public status API', () => {
         latency_ms: 1,
         uptime_24h: 1,
         open_incident: null,
+        check_count: 1,
+        ever_succeeded: true,
+        recent_incidents: [],
       },
       15,
     );
