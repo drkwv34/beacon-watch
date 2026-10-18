@@ -11,7 +11,7 @@ flaky targets are smoothed with grace/recovery thresholds; public status pages d
 ## Tech stack
 
 TypeScript (strict) on Node 22 · pnpm workspaces · Fastify (API) · plain Node worker · Next.js App Router (web) ·
-Postgres 16 · Redis 7 · Zod · pino · Vitest · Playwright (later) · Docker Compose · GitHub Actions.
+Postgres 16 · Redis 7 · Zod · pino · Vitest · Playwright · Docker Compose · GitHub Actions.
 
 ## Topology
 
