@@ -10,7 +10,7 @@ Test hard edges and contracts thoroughly; don't chase line coverage on scaffoldi
 | API | Vitest + `app.inject()` | Route validation, error envelope, authz (403 vs 404 on public routes) without a network socket | Every push/PR |
 | Integration | Vitest + Postgres service (Redis + mock-target from Day 3) | Auth sessions, target CRUD/SSRF/ownership; later `SKIP LOCKED`, Redis-down, 429 | Every PR (Postgres from Day 2) |
 | Contract | Vitest + Zod schema | Public status JSON shape (SRS Appendix A) | Every PR (from Day 5) |
-| E2E | Playwright | Create target → see check → open public page (`pnpm test:e2e` against a running stack; Day 7 expands the suite) | Local smoke (Day 6); Compose `--wait` was not reliable in CI |
+| E2E | Playwright | Create target → see check → open public page (`pnpm test:e2e` against Compose; Day 7 expands the suite) | Every PR and `main` (Compose `--wait` + host Playwright) |
 
 ## Rules
 
@@ -24,6 +24,6 @@ Test hard edges and contracts thoroughly; don't chase line coverage on scaffoldi
 ## CI gate (`.github/workflows/ci.yml`)
 
 `install --frozen-lockfile → format:check → lint → typecheck → test → build`, plus a parallel job that validates
-`docker-compose.yml` and builds every image. The quality job provides Postgres 16 for `*.int.test.ts`. Playwright
-smoke is run locally in Day 6 (`pnpm test:e2e`); wiring it to CI waits until Compose `--wait` stays up through
-API boot (the first attempt exited before `/healthz`).
+`docker-compose.yml` and builds every image. The quality job provides Postgres 16 for `*.int.test.ts`. A third job
+brings Compose up with `--wait` (API healthcheck `start_period` and worker waits for a healthy API so boot
+migrations are not raced) and runs `pnpm test:e2e` against the published web port.
