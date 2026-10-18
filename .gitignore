@@ -15,3 +15,8 @@ next-env.d.ts
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
