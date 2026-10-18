@@ -1,6 +1,6 @@
 # Frontend conventions (apps/web)
 
-The UI is a stub today; these rules bind the dashboard and status pages when they land (Day 6).
+These rules bind the dashboard and public status pages.
 Goal: calm, legible, operational. It should read like a status console, not a marketing site.
 
 ## Structure

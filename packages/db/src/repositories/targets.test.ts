@@ -36,6 +36,11 @@ describe('toPublicTarget', () => {
     const paused = toPublicTarget(row({ enabled: false, lastStatus: 'up' }));
     expect(paused.last_status).toBe('paused');
     expect(paused.enabled).toBe(false);
+    expect(paused.latency_ms).toBeNull();
     expect(paused.created_at).toBe('2026-10-14T00:00:00.000Z');
+  });
+
+  it('includes latest latency when provided', () => {
+    expect(toPublicTarget(row(), { latencyMs: 42 }).latency_ms).toBe(42);
   });
 });

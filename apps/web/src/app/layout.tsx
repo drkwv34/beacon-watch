@@ -15,18 +15,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <a className="skip-link" href="#main">
           Skip to content
         </a>
-        <header className="site-header">
-          <a className="brand" href="/">
-            beacon-watch
-          </a>
-          <nav className="nav">
-            <a href="/dashboard">Dashboard</a>
-            <a href="/login">Sign in</a>
-          </nav>
-        </header>
-        <main id="main" className="container">
-          {children}
-        </main>
+        {children}
       </body>
     </html>
   );

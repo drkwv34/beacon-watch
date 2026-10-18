@@ -12,6 +12,16 @@ export const PublicStatusBody = z.object({
       duration_seconds: z.number().int().nonnegative(),
     })
     .nullable(),
+  check_count: z.number().int().nonnegative(),
+  ever_succeeded: z.boolean(),
+  recent_incidents: z.array(
+    z.object({
+      opened_at: z.string(),
+      resolved_at: z.string().nullable(),
+      duration_seconds: z.number().int().nonnegative(),
+      status: z.enum(['open', 'resolved']),
+    }),
+  ),
 });
 
 export type PublicStatusBody = z.infer<typeof PublicStatusBody>;

@@ -3,6 +3,12 @@ import { createServer } from 'node:http';
 import { pathToFileURL } from 'node:url';
 
 const LARGE_BODY = 'x'.repeat(8192);
+let healthStatus = Number(process.env.MOCK_HEALTH_STATUS ?? 200);
+
+function sendJson(res, status, body, method) {
+  res.writeHead(status, { 'content-type': 'application/json' });
+  res.end(method === 'HEAD' ? undefined : JSON.stringify(body));
+}
 
 export function handleRequest(req, res) {
   const url = new URL(req.url ?? '/', 'http://mock-target.local');
@@ -14,9 +20,26 @@ export function handleRequest(req, res) {
     return;
   }
 
+  if (url.pathname === '/admin/fail' && method === 'POST') {
+    healthStatus = 500;
+    sendJson(res, 200, { health: healthStatus }, method);
+    return;
+  }
+
+  if (url.pathname === '/admin/ok' && method === 'POST') {
+    healthStatus = 200;
+    sendJson(res, 200, { health: healthStatus }, method);
+    return;
+  }
+
+  if (url.pathname === '/ready') {
+    sendJson(res, 200, { status: 'ready' }, method);
+    return;
+  }
+
   if (url.pathname === '/health') {
-    res.writeHead(200, { 'content-type': 'application/json' });
-    res.end(method === 'HEAD' ? undefined : JSON.stringify({ status: 'ok' }));
+    const body = healthStatus === 200 ? { status: 'ok' } : { status: 'down' };
+    sendJson(res, healthStatus, body, method);
     return;
   }
 

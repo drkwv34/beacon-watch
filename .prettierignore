@@ -3,3 +3,6 @@ pnpm-lock.yaml
 **/.next
 **/node_modules
 *.md
+test-results
+playwright-report
+blob-report

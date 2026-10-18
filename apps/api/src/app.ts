@@ -14,6 +14,8 @@ import { PublicStatusService } from './modules/public-status/service.js';
 import { registerPublicStatusRoutes } from './modules/public-status/routes.js';
 import { TargetService } from './modules/targets/service.js';
 import { registerTargetRoutes } from './modules/targets/routes.js';
+import { CheckService } from './modules/checks/service.js';
+import { registerCheckRoutes } from './modules/checks/routes.js';
 import { IncidentService } from './modules/incidents/service.js';
 import { registerIncidentRoutes } from './modules/incidents/routes.js';
 
@@ -108,6 +110,7 @@ export async function buildApp(
       (deps.redis ? new RedisRateLimiter(deps.redis, fullConfig.PUBLIC_RATE_LIMIT_PER_MIN) : undefined);
     const auth = new AuthService(deps.pool, fullConfig, now, deps.randomBytes);
     const targets = new TargetService(deps.pool, fullConfig, lookup, now, cache);
+    const checks = new CheckService(deps.pool);
     const incidents = new IncidentService(deps.pool, now);
     const publicStatus = new PublicStatusService(deps.pool, cache, now);
 
@@ -143,6 +146,7 @@ export async function buildApp(
           });
           await registerProtectedAuthRoutes(protectedApi, auth, fullConfig);
           await registerTargetRoutes(protectedApi, targets);
+          await registerCheckRoutes(protectedApi, checks);
           await registerIncidentRoutes(protectedApi, incidents);
           protectedApi.all('/*', async () => {
             throw new DomainError('NOT_FOUND', 'Route not found');

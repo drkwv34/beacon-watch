@@ -5,6 +5,7 @@ import {
   type CheckId,
   type IncidentId,
   type IncidentStatus,
+  type PublicRecentIncident,
   type TargetId,
 } from '@beacon-watch/domain';
 import type { Queryable } from '../client.js';
@@ -43,16 +44,28 @@ export function mapIncident(row: IncidentRecord): IncidentRow {
   };
 }
 
-export function toPublicIncident(row: IncidentRow, now: Date): Record<string, unknown> {
+function incidentDurationSeconds(row: IncidentRow, now: Date): number {
   const end = row.resolvedAt ?? now;
-  const durationSeconds = Math.max(0, Math.floor((end.getTime() - row.openedAt.getTime()) / 1000));
+  return Math.max(0, Math.floor((end.getTime() - row.openedAt.getTime()) / 1000));
+}
+
+export function toPublicIncident(row: IncidentRow, now: Date): Record<string, unknown> {
   return {
     id: row.id,
     status: row.status,
     opened_at: row.openedAt.toISOString(),
     resolved_at: row.resolvedAt ? row.resolvedAt.toISOString() : null,
     trigger_check_id: row.triggerCheckId,
-    duration_seconds: durationSeconds,
+    duration_seconds: incidentDurationSeconds(row, now),
+  };
+}
+
+export function toPublicRecentIncident(row: IncidentRow, now: Date): PublicRecentIncident {
+  return {
+    opened_at: row.openedAt.toISOString(),
+    resolved_at: row.resolvedAt ? row.resolvedAt.toISOString() : null,
+    duration_seconds: incidentDurationSeconds(row, now),
+    status: row.status,
   };
 }
 

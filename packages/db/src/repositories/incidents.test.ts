@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { asCheckId, asIncidentId, asTargetId } from '@beacon-watch/domain';
-import { mapIncident, toPublicIncident, type IncidentRow } from './incidents.js';
+import { mapIncident, toPublicIncident, toPublicRecentIncident, type IncidentRow } from './incidents.js';
 
 describe('mapIncident', () => {
   it('maps snake_case rows to camelCase', () => {
@@ -63,5 +63,18 @@ describe('toPublicIncident', () => {
       resolved_at: '2026-10-15T00:00:10.000Z',
       duration_seconds: 10,
     });
+  });
+
+  it('omits ids on the public recent-incident shape', () => {
+    const now = new Date('2026-10-15T00:01:30.000Z');
+    const json = toPublicRecentIncident(base, now);
+    expect(json).toEqual({
+      opened_at: '2026-10-15T00:00:00.000Z',
+      resolved_at: null,
+      duration_seconds: 90,
+      status: 'open',
+    });
+    expect(json).not.toHaveProperty('id');
+    expect(json).not.toHaveProperty('trigger_check_id');
   });
 });
