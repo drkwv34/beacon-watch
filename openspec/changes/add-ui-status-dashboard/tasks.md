@@ -28,7 +28,7 @@
 ## 5. Playwright and integration check
 
 - [x] 5.1 Add a Playwright smoke against the real stack (register, create mock-target URL, see list, open public page) that does not trip the public limiter; capture screenshots of list, detail, public green, and public red after flap
-- [x] 5.2 Run `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm compose:config` and `openspec validate add-ui-status-dashboard --strict`; verify all exit 0. Wire Playwright into CI only if Compose `--wait` is reliable, otherwise run it locally and say so
+- [x] 5.2 Run `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm compose:config` and `openspec validate add-ui-status-dashboard --strict`; verify all exit 0. Playwright is run locally (`pnpm test:e2e`); Compose `--wait` in CI was not reliable (API container exited on boot).
 
 ## Workflow follow-up
 
