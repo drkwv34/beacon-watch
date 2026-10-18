@@ -2,9 +2,9 @@
 
 Uptime and latency monitoring with incident timelines, cached status pages, and a rate-limited public API.
 
-> **Status: auth + targets + scheduler/probes.** Session login, owner-scoped HTTP monitor CRUD, due-target
-> claiming, and the isolated probe client are in. Incidents, Redis, and public status pages land behind later
-> OpenSpec changes.
+> **Status: dashboard + public status pages.** Session login, owner-scoped HTTP monitors, probes, incidents,
+> Redis cache, the public JSON API, the Next.js dashboard, and `/s/[slug]` are in. Notifications and a full
+> README rewrite land later.
 
 ## What it will do
 
@@ -75,8 +75,12 @@ pnpm lint && pnpm typecheck && pnpm test && pnpm build
 cp .env.example .env          # optional; Compose has safe local defaults
 docker compose up --build     # api :4000, web :3000, mock-target :8080, Postgres, Redis
 curl localhost:4000/healthz
-# Register, then add a monitor at http://localhost:3000/dashboard
-# Demo target URL: http://mock-target:8080/health (allowlisted on the API; worker SSRF is off in Compose)
+# Sign in at http://localhost:3000/login (or register), then open http://localhost:3000/dashboard
+# Add a public monitor: URL http://mock-target:8080/health, slug e.g. demo, then open http://localhost:3000/s/demo
+# After the worker's first success the status page is green (Up). Flip mock-target to 500:
+#   ./scripts/demo-flap.sh            # POST /admin/fail → /health returns 500
+# then Check now on the target detail page (or wait for the interval) until the public page shows Down.
+# Restore: ./scripts/demo-flap.sh --ok
 # Slow fixture for timeout tests: http://mock-target:8080/slow?ms=2000
 ```
 

@@ -2,6 +2,13 @@
 
 Redis holds nothing that cannot be recomputed from Postgres. Keys, TTLs, and failure modes below are implemented in the API and worker.
 
+## Public JSON shape
+
+`GET /api/public/v1/status/:slug` returns SRS Appendix A fields (`name`, `status`, `last_checked_at`, `latency_ms`,
+`uptime_24h`, `open_incident`) plus additive FR-PUB-002 fields: `check_count`, `ever_succeeded`, and
+`recent_incidents` (times, duration, status; no ids or URLs). Private and unknown slugs share the same 404 body
+aside from `request_id`.
+
 ## Keys
 
 | Key | Value | TTL | Written | Invalidated |
