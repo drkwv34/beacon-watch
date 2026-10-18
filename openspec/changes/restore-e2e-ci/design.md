@@ -30,7 +30,7 @@ Set worker `depends_on.api.condition: service_healthy`. API migrates, listens, `
 
 ### 2. API healthcheck `start_period` so boot is not a failed probe
 
-`/healthz` is valid only after `migrate()` and `listen()`. With `start_period` 0, a slow boot can mark the container unhealthy before it is serving. Add `start_period: 40s` on the API healthcheck; keep `wget` to `http://127.0.0.1:4000/healthz` (same probe as today). Interval 5s so `--wait` notices a successful listen sooner; retries stay 10. Rejected: removing the healthcheck or treating “started” as enough. Rejected: skipping `--wait`.
+`/healthz` is valid only after `migrate()` and `listen()`. With `start_period` 0, a slow boot can mark the container unhealthy before it is serving. Add `start_period: 40s` on the API healthcheck; keep the existing `node -e fetch('/healthz')` probe. Interval 5s so `--wait` notices a successful listen sooner; retries stay 10. Rejected: removing the healthcheck or treating “started” as enough. Rejected: skipping `--wait`.
 
 ### 3. Restore the e2e job; dump Compose logs on failure
 
