@@ -1,9 +1,17 @@
+import type { IncidentStatus } from '../incidents/machine.js';
 import type { DisplayStatus, TargetStatus } from '../target-status.js';
 import { CACHE_VALUE_VERSION } from './keys.js';
 
 export interface PublicOpenIncident {
   opened_at: string;
   duration_seconds: number;
+}
+
+export interface PublicRecentIncident {
+  opened_at: string;
+  resolved_at: string | null;
+  duration_seconds: number;
+  status: IncidentStatus;
 }
 
 export interface PublicStatusPayload {
@@ -13,6 +21,29 @@ export interface PublicStatusPayload {
   latency_ms: number | null;
   uptime_24h: number | null;
   open_incident: PublicOpenIncident | null;
+  check_count: number;
+  ever_succeeded: boolean;
+  recent_incidents: PublicRecentIncident[];
+}
+
+export const PUBLIC_STATUS_NOTICE = {
+  paused: 'Monitoring is paused',
+  starting: 'Monitoring starting…',
+  never_succeeded: 'No successful checks yet.',
+} as const;
+
+export type PublicStatusNoticeKind = keyof typeof PUBLIC_STATUS_NOTICE;
+
+/** Pick FR-PUB-002 copy; paused wins over empty/never-succeeded. */
+export function selectPublicStatusNotice(input: {
+  status: DisplayStatus;
+  check_count: number;
+  ever_succeeded: boolean;
+}): PublicStatusNoticeKind | null {
+  if (input.status === 'paused') return 'paused';
+  if (input.check_count <= 0) return 'starting';
+  if (!input.ever_succeeded) return 'never_succeeded';
+  return null;
 }
 
 export interface LatestStatusPayload {
