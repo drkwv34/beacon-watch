@@ -93,9 +93,11 @@ describe('probe client', () => {
 
   it('blocks loopback and RFC1918 literals when SSRF protection is on', async () => {
     const protectedClient = createProbeClient({ ssrfProtection: true, insecureTls: false });
-    const loopback = await protectedClient.probe(target({ url: 'http://127.0.0.1/health' }));
-    expect(loopback.success).toBe(false);
-    expect(loopback.errorCode).toBe('SSRF_BLOCKED');
+    for (const url of ['http://127.0.0.1/health', 'http://10.0.0.1/health', 'http://192.168.1.1/health']) {
+      const blocked = await protectedClient.probe(target({ url }));
+      expect(blocked.success, url).toBe(false);
+      expect(blocked.errorCode, url).toBe('SSRF_BLOCKED');
+    }
   });
 });
 

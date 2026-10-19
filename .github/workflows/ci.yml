@@ -77,6 +77,7 @@ jobs:
       - name: Build images
         run: docker compose build
 
+  # Do not delete, skip, or set continue-on-error on this job (NFR-MAINT-001).
   e2e:
     name: playwright smoke
     runs-on: ubuntu-latest
@@ -86,7 +87,7 @@ jobs:
       E2E_TARGET_URL: http://mock-target:8080/health
       MOCK_TARGET_URL: http://127.0.0.1:8080
       PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
-      SCREENSHOT_DIR: /tmp/beacon-watch-screenshots
+      SCREENSHOT_DIR: playwright-screenshots
     steps:
       - uses: actions/checkout@v4
       - name: Setup pnpm (version from packageManager)
@@ -116,6 +117,15 @@ jobs:
         run: |
           docker compose --env-file .env.example ps -a
           docker compose --env-file .env.example logs
+      - name: Upload Playwright traces and screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: |
+            test-results/
+            playwright-screenshots/
+          if-no-files-found: ignore
       - name: Stop Compose stack
         if: always()
         run: docker compose --env-file .env.example down -v

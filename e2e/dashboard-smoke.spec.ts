@@ -32,6 +32,17 @@ test('owner can create a mock-target monitor and open its public page', async ({
   await page.waitForURL('**/dashboard');
   await expect(page.getByRole('heading', { name: 'Add your first monitor.' })).toBeVisible();
 
+  await page.getByRole('link', { name: 'Sign in' }).click();
+  await page.waitForURL('**/login');
+  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+  await shot(page, 'login');
+
+  await page.getByLabel('Email').fill(email);
+  await page.getByLabel('Password').fill('password12');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.waitForURL('**/dashboard');
+  await expect(page.getByRole('heading', { name: 'Add your first monitor.' })).toBeVisible();
+
   await page.getByRole('link', { name: 'Add your first monitor.' }).click();
   await page.getByLabel('Name').fill(name);
   await page.getByLabel('URL').fill(targetUrl);
