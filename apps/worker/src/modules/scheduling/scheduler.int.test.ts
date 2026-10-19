@@ -150,4 +150,56 @@ describe.skipIf(skip)('scheduler integration', () => {
     expect(await listIncidentsForTarget(pool, target.id)).toHaveLength(1);
     expect(await findOpenIncident(pool, target.id)).toBeDefined();
   });
+
+  it('caps in-flight probes at the global semaphore during tick', async () => {
+    const now = new Date('2026-10-15T00:00:00.000Z');
+    await seedDueTarget(pool, now, { url: `${baseUrl}/health` });
+    await seedDueTarget(pool, now, { url: `${baseUrl}/health` });
+    await seedDueTarget(pool, now, { url: `${baseUrl}/health` });
+    await seedDueTarget(pool, now, { url: `${baseUrl}/health` });
+    let current = 0;
+    let peak = 0;
+    const gated: ProbeClient = {
+      async probe(_input: ProbeTarget): Promise<ProbeOutcome> {
+        current += 1;
+        peak = Math.max(peak, current);
+        await new Promise((resolve) => {
+          setTimeout(resolve, 40);
+        });
+        current -= 1;
+        return okOutcome();
+      },
+    };
+    const n = await tick(
+      schedulerDeps(pool, gated, { now: () => now, global: new Semaphore(2), perHost: new HostSemaphore(4) }),
+    );
+    expect(n).toBe(2);
+    expect(peak).toBe(2);
+    expect(peak).toBeLessThanOrEqual(2);
+  });
+
+  it('caps in-flight probes per hostname during tick', async () => {
+    const now = new Date('2026-10-15T00:00:00.000Z');
+    await seedDueTarget(pool, now, { url: `${baseUrl}/health` });
+    await seedDueTarget(pool, now, { url: `${baseUrl}/health` });
+    await seedDueTarget(pool, now, { url: `${baseUrl}/health` });
+    let current = 0;
+    let peak = 0;
+    const gated: ProbeClient = {
+      async probe(_input: ProbeTarget): Promise<ProbeOutcome> {
+        current += 1;
+        peak = Math.max(peak, current);
+        await new Promise((resolve) => {
+          setTimeout(resolve, 40);
+        });
+        current -= 1;
+        return okOutcome();
+      },
+    };
+    const n = await tick(
+      schedulerDeps(pool, gated, { now: () => now, global: new Semaphore(4), perHost: new HostSemaphore(1) }),
+    );
+    expect(n).toBe(3);
+    expect(peak).toBe(1);
+  });
 });

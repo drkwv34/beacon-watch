@@ -278,6 +278,49 @@ describe.skipIf(skip)('public status API', () => {
     }
   });
 
+  it('rate-limits a small burst from one IP and leaves a second IP unaffected', async () => {
+    await seedUpTarget('burst-demo');
+    const burstApp = await buildTestApp({
+      pool,
+      redis,
+      now: () => NOW,
+      config: testConfig({ PUBLIC_RATE_LIMIT_PER_MIN: '3' }),
+      lookup: async () => ['93.184.216.34'],
+    });
+    const ipA = nextIp();
+    const ipB = nextIp();
+    let last = await burstApp.inject({
+      method: 'GET',
+      url: '/api/public/v1/status/burst-demo',
+      remoteAddress: ipA,
+    });
+    for (let i = 0; i < 2; i += 1) {
+      last = await burstApp.inject({
+        method: 'GET',
+        url: '/api/public/v1/status/burst-demo',
+        remoteAddress: ipA,
+      });
+    }
+    expect(last.statusCode).toBe(200);
+    expect(last.headers['x-ratelimit-limit']).toBe('3');
+    expect(last.headers['x-ratelimit-remaining']).toBe('0');
+    const limited = await burstApp.inject({
+      method: 'GET',
+      url: '/api/public/v1/status/burst-demo',
+      remoteAddress: ipA,
+    });
+    expect(limited.statusCode).toBe(429);
+    expect(limited.json().error.code).toBe('RATE_LIMITED');
+    expect(limited.headers['retry-after']).toBeTruthy();
+    const other = await burstApp.inject({
+      method: 'GET',
+      url: '/api/public/v1/status/burst-demo',
+      remoteAddress: ipB,
+    });
+    expect(other.statusCode).toBe(200);
+    await burstApp.close();
+  });
+
   it('rate-limits the 61st request from one IP and leaves a second IP unaffected', async () => {
     await seedUpTarget();
     const ipA = nextIp();

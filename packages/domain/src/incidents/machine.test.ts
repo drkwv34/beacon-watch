@@ -96,3 +96,46 @@ describe('applyCheckResult Appendix B', () => {
     });
   });
 });
+
+describe('single-failure no-noise FR-INC-001', () => {
+  it('does not open on fail then success', () => {
+    const afterFail = applyCheckResult(zero, false, grace2);
+    expect(afterFail).toEqual({
+      action: 'none',
+      counters: { consecutiveFailures: 1, consecutiveSuccesses: 0, hasOpenIncident: false },
+    });
+    const afterSuccess = applyCheckResult(afterFail.counters, true, grace2);
+    expect(afterSuccess).toEqual({
+      action: 'none',
+      counters: { consecutiveFailures: 0, consecutiveSuccesses: 1, hasOpenIncident: false },
+    });
+  });
+
+  it('opens on fail then fail', () => {
+    const first = applyCheckResult(zero, false, grace2);
+    expect(first.action).toBe('none');
+    expect(first.counters.hasOpenIncident).toBe(false);
+    const second = applyCheckResult(first.counters, false, grace2);
+    expect(second).toEqual({
+      action: 'open',
+      counters: { consecutiveFailures: 2, consecutiveSuccesses: 0, hasOpenIncident: true },
+    });
+  });
+});
+
+describe('resolve on consecutive successes FR-INC-002', () => {
+  it('resolves after two successes when recovery is 2', () => {
+    const opened = applyCheckResult(applyCheckResult(zero, false, grace2).counters, false, grace2);
+    expect(opened.action).toBe('open');
+    const firstOk = applyCheckResult(opened.counters, true, grace2);
+    expect(firstOk).toEqual({
+      action: 'none',
+      counters: { consecutiveFailures: 0, consecutiveSuccesses: 1, hasOpenIncident: true },
+    });
+    const secondOk = applyCheckResult(firstOk.counters, true, grace2);
+    expect(secondOk).toEqual({
+      action: 'resolve',
+      counters: { consecutiveFailures: 0, consecutiveSuccesses: 2, hasOpenIncident: false },
+    });
+  });
+});
