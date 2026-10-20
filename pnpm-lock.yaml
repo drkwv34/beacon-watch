@@ -116,6 +116,9 @@ importers:
       '@beacon-watch/domain':
         specifier: workspace:*
         version: link:../domain
+      '@node-rs/argon2':
+        specifier: ^2.2.2
+        version: 2.2.2
       pg:
         specifier: ^8.23.1
         version: 8.23.1

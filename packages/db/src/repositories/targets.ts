@@ -189,6 +189,25 @@ export async function findPublicTargetBySlug(db: Queryable, slug: string): Promi
   return row ? mapTarget(row) : undefined;
 }
 
+export async function findTargetBySlug(db: Queryable, slug: string): Promise<TargetRow | undefined> {
+  const { rows } = await db.query<TargetRecord>(`SELECT * FROM targets WHERE public_slug = $1`, [slug]);
+  const row = rows[0];
+  return row ? mapTarget(row) : undefined;
+}
+
+export async function findTargetByUserAndName(
+  db: Queryable,
+  userId: UserId,
+  name: string,
+): Promise<TargetRow | undefined> {
+  const { rows } = await db.query<TargetRecord>(
+    `SELECT * FROM targets WHERE user_id = $1 AND name = $2 ORDER BY created_at ASC, id ASC LIMIT 1`,
+    [userId, name],
+  );
+  const row = rows[0];
+  return row ? mapTarget(row) : undefined;
+}
+
 export async function listTargetsForUser(db: Queryable, userId: UserId, opts: { limit: number }): Promise<TargetRow[]> {
   const { rows } = await db.query<TargetRecord>(
     `SELECT * FROM targets WHERE user_id = $1 ORDER BY created_at ASC, id ASC LIMIT $2`,

@@ -21,3 +21,5 @@ export async function openTestPool(): Promise<DbPool> {
 export async function resetDb(pool: DbPool): Promise<void> {
   await pool.query('TRUNCATE users CASCADE');
 }
+
+export type { DbPool };

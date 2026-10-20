@@ -20,7 +20,8 @@
     "api": "pnpm --filter @beacon-watch/api dev",
     "worker": "pnpm --filter @beacon-watch/worker dev",
     "web": "pnpm --filter @beacon-watch/web dev",
-    "compose:config": "docker compose --env-file .env.example config --quiet"
+    "compose:config": "docker compose --env-file .env.example config --quiet",
+    "seed": "tsx --conditions=@beacon-watch/source packages/db/src/seed.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1",
