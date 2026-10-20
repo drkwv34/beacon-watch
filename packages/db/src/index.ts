@@ -3,7 +3,13 @@ export { withTransaction } from './transaction.js';
 export { migrate, listMigrationFiles, isMigrationFilename } from './migrate.js';
 export { MIGRATIONS_DIR } from './paths.js';
 export { isUniqueViolation, conflictIfUnique } from './errors.js';
-export { insertUser, findUserByEmail, findUserById, type UserRow } from './repositories/users.js';
+export {
+  insertUser,
+  findUserByEmail,
+  findUserById,
+  updateUserPasswordHash,
+  type UserRow,
+} from './repositories/users.js';
 export {
   insertSession,
   findSessionByTokenHash,
@@ -15,6 +21,8 @@ export {
   insertTarget,
   findTargetById,
   findPublicTargetBySlug,
+  findTargetBySlug,
+  findTargetByUserAndName,
   listTargetsForUser,
   countTargetsForUser,
   updateTarget,
@@ -50,3 +58,15 @@ export {
   OPEN_INCIDENT_INDEX,
   type IncidentRow,
 } from './repositories/incidents.js';
+export {
+  DEMO_EMAIL,
+  DEMO_LIVE_NAME,
+  DEMO_LIVE_SLUG,
+  DEMO_LIVE_URL,
+  DEMO_PAUSED_NAME,
+  parseSeedEnv,
+  rewriteComposeDatabaseUrl,
+  seedDemo,
+  type SeedDemoInput,
+  type SeedDemoResult,
+} from './seed.js';

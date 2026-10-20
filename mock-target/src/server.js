@@ -4,10 +4,30 @@ import { pathToFileURL } from 'node:url';
 
 const LARGE_BODY = 'x'.repeat(8192);
 let healthStatus = Number(process.env.MOCK_HEALTH_STATUS ?? 200);
+/** @type {ReturnType<typeof setTimeout> | undefined} */
+let restoreTimer;
 
 function sendJson(res, status, body, method) {
   res.writeHead(status, { 'content-type': 'application/json' });
   res.end(method === 'HEAD' ? undefined : JSON.stringify(body));
+}
+
+function clearRestoreTimer() {
+  if (restoreTimer) {
+    clearTimeout(restoreTimer);
+    restoreTimer = undefined;
+  }
+}
+
+function setHealth(status, restoreAfterSeconds) {
+  clearRestoreTimer();
+  healthStatus = status;
+  if (status !== 200 && restoreAfterSeconds > 0) {
+    restoreTimer = setTimeout(() => {
+      healthStatus = 200;
+      restoreTimer = undefined;
+    }, restoreAfterSeconds * 1000);
+  }
 }
 
 export function handleRequest(req, res) {
@@ -21,13 +41,20 @@ export function handleRequest(req, res) {
   }
 
   if (url.pathname === '/admin/fail' && method === 'POST') {
-    healthStatus = 500;
-    sendJson(res, 200, { health: healthStatus }, method);
+    const seconds = Number(url.searchParams.get('seconds') ?? '0');
+    const restoreAfter = Number.isFinite(seconds) && seconds > 0 ? seconds : 0;
+    setHealth(500, restoreAfter);
+    sendJson(res, 200, { health: healthStatus, restore_after_seconds: restoreAfter }, method);
     return;
   }
 
   if (url.pathname === '/admin/ok' && method === 'POST') {
-    healthStatus = 200;
+    setHealth(200, 0);
+    sendJson(res, 200, { health: healthStatus }, method);
+    return;
+  }
+
+  if (url.pathname === '/admin/status') {
     sendJson(res, 200, { health: healthStatus }, method);
     return;
   }
@@ -85,7 +112,9 @@ export function handleRequest(req, res) {
 }
 
 export function createMockTargetServer() {
-  return createServer(handleRequest);
+  const server = createServer(handleRequest);
+  server.on('close', () => clearRestoreTimer());
+  return server;
 }
 
 export function listenMockTarget(port = Number(process.env.MOCK_TARGET_PORT ?? 8080), host = '0.0.0.0') {

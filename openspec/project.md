@@ -46,7 +46,8 @@ Specs are created under `specs/<capability>/spec.md` when the first change for t
 | `caching` | FR-CACHE-001..003, NFR-REL-001, NFR-PERF-001 | 5 |
 | `public-api` | FR-PUB-003..005, NFR-SEC-002 | 5 |
 | `dashboard-ui` | FR-UI-001..004, FR-PUB-001..002, NFR-A11Y-001 | 6 |
-| `quality` | NFR-MAINT-001; FR-INC-001..004, FR-SCH-001/005, FR-PUB-004, NFR-SEC-001/002 (test pyramid + CI gate) | 7 |
+| `quality` | NFR-MAINT-001; FR-INC-001..004, FR-SCH-001/005, FR-PUB-004, NFR-SEC-001/002 (test pyramid + CI gate); NFR-PORT-001 Compose flap e2e | 7–8 |
+| `portfolio` | NFR-PORT-001, SRS §9 / §4.4, Appendix D (seed, demo-flap, README, screenshots) | 8 |
 | `observability` | NFR-OBS-001..002, FR-ERR-001 | cross-cutting |
 
 ## Domain constraints worth remembering

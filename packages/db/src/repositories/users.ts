@@ -55,3 +55,16 @@ export async function findUserById(db: Queryable, id: UserId): Promise<UserRow |
   const row = rows[0];
   return row ? mapUser(row) : undefined;
 }
+
+export async function updateUserPasswordHash(
+  db: Queryable,
+  id: UserId,
+  passwordHash: string,
+): Promise<UserRow | undefined> {
+  const { rows } = await db.query<UserRecord>(
+    `UPDATE users SET password_hash = $2 WHERE id = $1 RETURNING id, email, password_hash, created_at`,
+    [id, passwordHash],
+  );
+  const row = rows[0];
+  return row ? mapUser(row) : undefined;
+}
