@@ -10,7 +10,7 @@ Test hard edges and contracts thoroughly; don't chase line coverage on scaffoldi
 | API | Vitest + `app.inject()` | Route validation, error envelope, authz (401 on `/api/v1/__probe`, 403 vs 404 on public routes) without a network socket | Every push/PR |
 | Integration | Vitest + Postgres 16 + Redis 7 + in-process mock-target | Auth sessions, target CRUD/create-time SSRF/ownership, `SKIP LOCKED` lease / no double-check, scheduler `tick` global and per-host semaphores, incident open/resolve sequences, public 429 bursts with unique IPs, Redis-down fail-closed | Every PR (`*.int.test.ts`; missing `DATABASE_URL`/`REDIS_URL` fails the job in CI) |
 | Contract | Vitest + Zod schema | Public status JSON shape (SRS Appendix A) | Every PR |
-| E2E | Playwright | Login → add mock-target monitor → labelled status on dashboard and `/s/[slug]` (`pnpm test:e2e` against Compose) | Every PR and `main` (Compose `--wait` + host Playwright). Do not skip this job. |
+| E2E | Playwright | Login → add mock-target monitor → labelled status on dashboard and `/s/[slug]`; seeded `demo` monitor flaps red then green (NFR-PORT-001) (`pnpm test:e2e` against Compose) | Every PR and `main` (Compose `--wait` + host Playwright). Do not skip this job. |
 
 ## Local
 
@@ -32,10 +32,14 @@ Playwright against the published web port. Bring the full stack up first (`mock-
 
 ```bash
 docker compose --env-file .env.example up -d --wait
+DATABASE_URL=postgresql://beacon:beacon-local-only@127.0.0.1:5432/beacon \
+DEMO_PASSWORD=demo-password-change-me \
+pnpm seed
 PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 \
 E2E_TARGET_URL=http://mock-target:8080/health \
 MOCK_TARGET_URL=http://127.0.0.1:8080 \
 PUBLIC_RATE_LIMIT_PER_MIN=1000 \
+DEMO_PASSWORD=demo-password-change-me \
 pnpm test:e2e
 ```
 

@@ -2,14 +2,14 @@
 
 ## 1. Appendix D seed
 
-- [ ] 1.1 Add `packages/db` seed (argon2 same as register) and root `pnpm seed` that migrates then upserts `demo@beacon.local`, public `mock-target` slug `demo` interval 30s, and one paused target; verify a seed integration test creates those rows
-- [ ] 1.2 Make seed idempotent (same user/targets on a second run, password hash refreshed from `DEMO_PASSWORD`) and read optional `DEMO_GRACE_THRESHOLD` / `DEMO_RECOVERY_THRESHOLD` for the live target only; verify the integration test running seed twice still has one user and two targets
-- [ ] 1.3 Document `DEMO_PASSWORD` and seed-profile grace overrides in `.env.example` without changing product interval/grace defaults; verify `apps/api` / domain defaults remain 60s and 2 in existing tests
+- [x] 1.1 Add `packages/db` seed (argon2 same as register) and root `pnpm seed` that migrates then upserts `demo@beacon.local`, public `mock-target` slug `demo` interval 30s, and one paused target; verify a seed integration test creates those rows
+- [x] 1.2 Make seed idempotent (same user/targets on a second run, password hash refreshed from `DEMO_PASSWORD`) and read optional `DEMO_GRACE_THRESHOLD` / `DEMO_RECOVERY_THRESHOLD` for the live target only; verify the integration test running seed twice still has one user and two targets
+- [x] 1.3 Document `DEMO_PASSWORD` and seed-profile grace overrides in `.env.example` without changing product interval/grace defaults; verify `apps/api` / domain defaults remain 60s and 2 in existing tests
 
 ## 2. Mock-target flap
 
-- [ ] 2.1 Keep or extend mock-target `POST /admin/fail` and `POST /admin/ok` (optional timed restore) so `/health` returns 500 then 200; verify a mock-target unit test toggles status without touching api/web
-- [ ] 2.2 Rewrite `scripts/demo-flap.sh` with `set -euo pipefail`, duration argument (default 45s), clear output, and restore after N seconds; verify `bash -n scripts/demo-flap.sh` and that `--ok` restores 200
+- [x] 2.1 Keep or extend mock-target `POST /admin/fail` and `POST /admin/ok` (optional timed restore) so `/health` returns 500 then 200; verify a mock-target unit test toggles status without touching api/web
+- [x] 2.2 Rewrite `scripts/demo-flap.sh` with `set -euo pipefail`, duration argument (default 45s), clear output, and restore after N seconds; verify `bash -n scripts/demo-flap.sh` and that `--ok` restores 200
 
 ## 3. NFR-PORT-001 e2e and CI
 
