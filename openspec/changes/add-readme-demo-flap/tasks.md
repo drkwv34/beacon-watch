@@ -13,20 +13,20 @@
 
 ## 3. NFR-PORT-001 e2e and CI
 
-- [ ] 3.1 Add `e2e/demo-flap.spec.ts` that signs in as the seeded demo user, waits for `/s/demo` Up, flaps mock-target to 500, observes Down and an open incident, restores, and observes Up/resolved; verify selectors are role/label based and retries stay at 1
-- [ ] 3.2 Keep `e2e/dashboard-smoke.spec.ts` and raise `PUBLIC_RATE_LIMIT_PER_MIN` in the e2e env; verify the workflow still starts Compose with `--wait` and has no `continue-on-error`
-- [ ] 3.3 Run `pnpm seed` in the e2e job after Compose is healthy, using host `DATABASE_URL` and `.env.example` `DEMO_PASSWORD`; verify `.github/workflows/ci.yml` still dumps logs and uploads traces on failure
-- [ ] 3.4 Update `docs/architecture/testing-strategy.md` and `openspec/project.md` so the pyramid names the flap e2e and the `portfolio` capability; verify those files mention NFR-PORT-001 / `pnpm seed`
+- [x] 3.1 Add `e2e/demo-flap.spec.ts` that signs in as the seeded demo user, waits for `/s/demo` Up, flaps mock-target to 500, observes Down and an open incident, restores, and observes Up/resolved; verify selectors are role/label based and retries stay at 1
+- [x] 3.2 Keep `e2e/dashboard-smoke.spec.ts` and raise `PUBLIC_RATE_LIMIT_PER_MIN` in the e2e env; verify the workflow still starts Compose with `--wait` and has no `continue-on-error`
+- [x] 3.3 Run `pnpm seed` in the e2e job after Compose is healthy, using host `DATABASE_URL` and `.env.example` `DEMO_PASSWORD`; verify `.github/workflows/ci.yml` still dumps logs and uploads traces on failure
+- [x] 3.4 Update `docs/architecture/testing-strategy.md` and `openspec/project.md` so the pyramid names the flap e2e and the `portfolio` capability; verify those files mention NFR-PORT-001 / `pnpm seed`
 
 ## 4. README, env, screenshots
 
-- [ ] 4.1 Rewrite `README.md` in SRS §9 order including hard edges and a Repository metadata section with the About blurb and topics; verify the demo section names Compose up, seed, `/s/demo`, and `scripts/demo-flap.sh`
-- [ ] 4.2 Confirm `.env.example` lists `DATABASE_URL`, `REDIS_URL`, `SESSION_SECRET`, `SSRF_PROTECTION`, `PUBLIC_RATE_LIMIT_PER_MIN`, `APP_BASE_URL`, `DEMO_PASSWORD`, and every other variable the apps read, with a Compose-only SSRF comment; verify `pnpm compose:config` still passes
-- [ ] 4.3 Capture Playwright screenshots of the real Compose app (`/s/demo` green, `/s/demo` red, dashboard) into `docs/screenshots/` and embed them in the README; verify the three PNG files are committed and referenced
+- [x] 4.1 Rewrite `README.md` in SRS §9 order including hard edges and a Repository metadata section with the About blurb and topics; verify the demo section names Compose up, seed, `/s/demo`, and `scripts/demo-flap.sh`
+- [x] 4.2 Confirm `.env.example` lists `DATABASE_URL`, `REDIS_URL`, `SESSION_SECRET`, `SSRF_PROTECTION`, `PUBLIC_RATE_LIMIT_PER_MIN`, `APP_BASE_URL`, `DEMO_PASSWORD`, and every other variable the apps read, with a Compose-only SSRF comment; verify `pnpm compose:config` still passes
+- [x] 4.3 Capture Playwright screenshots of the real Compose app (`/s/demo` green, `/s/demo` red, dashboard) into `docs/screenshots/` and embed them in the README; verify the three PNG files are committed and referenced
 
 ## 5. Integration check
 
-- [ ] 5.1 Run `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm compose:config` and `openspec validate add-readme-demo-flap --strict`; verify all exit 0
+- [x] 5.1 Run `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm compose:config` and `openspec validate add-readme-demo-flap --strict`; verify all exit 0
 
 ## Workflow follow-up
 
