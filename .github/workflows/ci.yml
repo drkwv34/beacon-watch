@@ -88,6 +88,7 @@ jobs:
       MOCK_TARGET_URL: http://127.0.0.1:8080
       PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
       SCREENSHOT_DIR: playwright-screenshots
+      DEMO_PASSWORD: demo-password-change-me
     steps:
       - uses: actions/checkout@v4
       - name: Setup pnpm (version from packageManager)
@@ -111,6 +112,13 @@ jobs:
           echo 'web did not become ready'
           docker compose --env-file .env.example logs
           exit 1
+      - name: Seed Appendix D demo
+        env:
+          DATABASE_URL: postgresql://beacon:beacon-local-only@127.0.0.1:5432/beacon
+          DEMO_PASSWORD: demo-password-change-me
+          DEMO_GRACE_THRESHOLD: '1'
+          DEMO_RECOVERY_THRESHOLD: '1'
+        run: pnpm seed
       - run: pnpm test:e2e
       - name: Dump Compose logs
         if: failure()

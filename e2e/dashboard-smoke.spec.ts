@@ -82,4 +82,7 @@ test('owner can create a mock-target monitor and open its public page', async ({
     await expect(page.getByText('Down', { exact: true }).first()).toBeVisible();
   }).toPass({ timeout: 45_000, intervals: [1_000] });
   await shot(page, 'status-red');
+
+  const ok = await fetch(`${mockTarget}/admin/ok`, { method: 'POST' });
+  expect(ok.ok).toBe(true);
 });
