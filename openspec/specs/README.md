@@ -27,7 +27,7 @@ Observability (NFR-OBS-001 check logs, FR-ERR-001 envelope) is specified in `doc
 6. ~~`restore-e2e-ci`~~ archived 2026-10-18.
 7. ~~`add-test-ci-hardening`~~ archived 2026-10-19.
 8. ~~`add-readme-demo-flap`~~ archived 2026-10-20.
-9. `add-pin-ready-closeout` (Day 9; `skip_specs: true` — checklist and Should backlog, no product delta).
+9. ~~`add-pin-ready-closeout`~~ archived 2026-10-21.
 
 Format for a capability `spec.md`:
 
