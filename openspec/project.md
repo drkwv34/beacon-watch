@@ -38,17 +38,18 @@ Specs are created under `specs/<capability>/spec.md` when the first change for t
 
 | Capability | FR / NFR IDs | Planned day |
 | --- | --- | --- |
-| `auth` | FR-AUTH-001..003, NFR-SEC-001 (session) | 2 |
+| `auth` | FR-AUTH-001..002, NFR-SEC-001 (session); FR-AUTH-003 API tokens (Should) | 2 |
 | `targets` | FR-TGT-001..003, FR-ERR-003 | 2 |
 | `scheduling` | FR-SCH-001, FR-SCH-003..005, NFR-PERF-002 | 3 |
 | `probe` | FR-SCH-002, Appendix C, NFR-SEC-001 (SSRF), FR-ERR-002 | 3 |
 | `incidents` | FR-INC-001..004, Appendix B, NFR-REL-002 | 4 |
-| `caching` | FR-CACHE-001..003, NFR-REL-001, NFR-PERF-001 | 5 |
+| `caching` | FR-CACHE-001..003, NFR-REL-001; NFR-PERF-001 local bench (not a CI gate) | 5 |
 | `public-api` | FR-PUB-003..005, NFR-SEC-002 | 5 |
-| `dashboard-ui` | FR-UI-001..004, FR-PUB-001..002, NFR-A11Y-001 | 6 |
+| `dashboard-ui` | FR-UI-001..004, FR-PUB-001..002, NFR-A11Y-001; latency sparkline (Should) | 6 |
 | `quality` | NFR-MAINT-001; FR-INC-001..004, FR-SCH-001/005, FR-PUB-004, NFR-SEC-001/002 (test pyramid + CI gate); NFR-PORT-001 Compose flap e2e | 7–8 |
 | `portfolio` | NFR-PORT-001, SRS §9 / §4.4, Appendix D (seed, demo-flap, README, screenshots) | 8 |
-| `observability` | NFR-OBS-001..002, FR-ERR-001 | cross-cutting |
+| pin-ready closeout | NFR-PORT-001 / NFR-MAINT-001 evidence; `docs/pin-ready-checklist.md`; `openspec/backlog/should-scope.md` | 9 |
+| `observability` | NFR-OBS-001, FR-ERR-001; NFR-OBS-002 Prometheus `/metrics` (Should) | cross-cutting |
 
 ## Domain constraints worth remembering
 
