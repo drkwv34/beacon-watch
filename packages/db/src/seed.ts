@@ -84,10 +84,7 @@ export function parseDotEnv(text: string): Record<string, string> {
   return out;
 }
 
-export function mergeSeedEnv(
-  fileEnv: Record<string, string>,
-  processEnv: NodeJS.ProcessEnv,
-): NodeJS.ProcessEnv {
+export function mergeSeedEnv(fileEnv: Record<string, string>, processEnv: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const merged: NodeJS.ProcessEnv = { ...processEnv };
   for (const [key, value] of Object.entries(fileEnv)) {
     if (merged[key] === undefined) merged[key] = value;
