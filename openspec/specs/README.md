@@ -29,6 +29,7 @@ Observability (NFR-OBS-001 check logs, FR-ERR-001 envelope) is specified in `doc
 8. ~~`add-readme-demo-flap`~~ archived 2026-10-20.
 9. ~~`add-pin-ready-closeout`~~ archived 2026-10-21.
 10. ~~`secure-probe-redirects`~~ archived 2026-11-13.
+11. ~~`load-seed-environment`~~ archived 2026-11-13.
 
 Format for a capability `spec.md`:
 

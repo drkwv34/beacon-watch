@@ -111,3 +111,7 @@ Tests MUST cover create-time URL rejection and probe-time `SSRF_BLOCKED` for loo
 #### Scenario: Product defaults unchanged
 - **WHEN** the apps boot without the e2e/seed profile overrides
 - **THEN** new targets still default to interval 60 seconds and grace/recovery 2
+
+#### Scenario: Seed step matches quickstart
+- **WHEN** the e2e job runs `pnpm seed`
+- **THEN** that step copies `.env.example` to `.env` and does not export `DATABASE_URL` or `DEMO_PASSWORD` for the seed command
