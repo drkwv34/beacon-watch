@@ -100,8 +100,11 @@ services:
       target: worker
     environment:
       <<: *app-env
-      # Appendix C #6: worker-only; API stays protected with SSRF_ALLOWLIST=mock-target.
-      SSRF_PROTECTION: 'false'
+      # Appendix C: protection stays on. Exact hostname exception for mock-target
+      # (not a subnet allowlist; not inherited by redirect hops). API stays
+      # protected with SSRF_ALLOWLIST=mock-target for create/update of the demo URL.
+      SSRF_PROTECTION: ${SSRF_PROTECTION:-true}
+      SSRF_HOST_EXCEPTION: ${SSRF_HOST_EXCEPTION:-mock-target}
       PROBE_MAX_CONCURRENCY: ${PROBE_MAX_CONCURRENCY:-20}
       PROBE_MAX_PER_HOST: ${PROBE_MAX_PER_HOST:-2}
       PROBE_INSECURE_TLS: ${PROBE_INSECURE_TLS:-false}

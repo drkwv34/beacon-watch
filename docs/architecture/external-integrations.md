@@ -27,8 +27,9 @@ Latency is measured with `performance.now()` from request start to response head
 1. Accept only `http:` and `https:` URLs, no userinfo, ports 1–65535.
 2. Resolve DNS **once** in the probe, validate **every** returned address, then connect to the validated IP (pinning via a custom `lookup`) so a DNS rebind between check and connect cannot bypass the rule.
 3. Block: `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `127.0.0.0/8`, `169.254.0.0/16` (incl. `169.254.169.254` metadata), `0.0.0.0/8`, `100.64.0.0/10`, `::1`, `::`, `fc00::/7`, `fe80::/10`, IPv4-mapped IPv6 of the above, and metadata hostnames (`metadata.google.internal`, `metadata`).
-4. Validate at target create/update (fast feedback, `VALIDATION_FAILED`) **and** at probe time (authoritative, `SSRF_BLOCKED`).
-5. Compose sets `SSRF_PROTECTION=false` for the worker only, so `http://mock-target:8080` works on the Docker network. Production profiles must keep it `true`.
+4. Validate at target create/update (fast feedback, `VALIDATION_FAILED`) **and** at probe time (authoritative, `SSRF_BLOCKED`). Create/update inspect **only the submitted URL** (scheme, hostname, DNS). They MUST NOT follow redirects and MUST NOT fetch the target. A public or allowlisted URL that later redirects to a blocked address is stored as a failed check (`SSRF_BLOCKED`) by the worker.
+5. Re-validate **every** redirect `Location` before opening a socket. A hostname exception is not inherited by the next hop.
+6. Compose keeps worker `SSRF_PROTECTION=true` and sets `SSRF_HOST_EXCEPTION=mock-target` (exact hostname, not a subnet allowlist) so `http://mock-target:8080` can resolve to a Docker RFC1918 address. The exception applies only to that hostname; redirects to metadata, loopback, or private literals/DNS are `SSRF_BLOCKED` with no second-hop connect. Production omits the exception. `SSRF_PROTECTION=false` is explicit local debugging only; the worker warns at boot that this is not the Compose demo path. The API stays protected with `SSRF_ALLOWLIST=mock-target`.
 
 ## 4. Failure semantics
 

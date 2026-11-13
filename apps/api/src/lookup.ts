@@ -20,6 +20,7 @@ function looksLikeIp(hostname: string): boolean {
   return parseIPv4(hostname) !== null || hostname.includes(':');
 }
 
+/** Synchronous check of the submitted URL only. Does not follow redirects or fetch the target. */
 export async function assertUrlAllowed(
   rawUrl: string,
   config: Pick<ApiConfig, 'SSRF_PROTECTION' | 'SSRF_ALLOWLIST'>,

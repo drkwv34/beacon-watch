@@ -5,5 +5,8 @@ ESLint blocks `fetch`, `undici`, and `node:http(s)` everywhere else in `apps/api
 
 The policy is normative: [`docs/architecture/external-integrations.md`](../../../../docs/architecture/external-integrations.md).
 
-Compose sets `SSRF_PROTECTION=false` on the worker so `http://mock-target:8080` works on the Docker network
-(Appendix C #6). The API keeps protection on and allowlists the demo hostname.
+Compose keeps `SSRF_PROTECTION=true` on the worker and sets `SSRF_HOST_EXCEPTION=mock-target` so
+`http://mock-target:8080` works on the Docker network (exact hostname, not a subnet allowlist).
+The exception is not inherited by redirect hops: a Location to metadata, loopback, or RFC1918 is
+`SSRF_BLOCKED` before any socket. The API keeps protection on, allowlists the demo hostname for
+create/update of the initial URL only, and never follows redirects or fetches the target.

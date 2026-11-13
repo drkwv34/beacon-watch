@@ -1,5 +1,7 @@
 import { lookup } from 'node:dns/promises';
-import { pathToFileURL } from 'node:url';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { hash as argonHash, verify as argonVerify } from '@node-rs/argon2';
 import { DomainError } from '@beacon-watch/domain';
 import { createPool, type DbClient, type DbPool } from './client.js';
@@ -55,7 +57,58 @@ export interface SeedEnv {
 }
 
 function invalid(keys: string[]): never {
-  throw new Error(`Invalid seed configuration: ${keys.join(', ')}`);
+  throw new Error(
+    `Invalid seed configuration: ${keys.join(', ')}. Set them in the environment or in a root .env file.`,
+  );
+}
+
+export function parseDotEnv(text: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const line of text.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eq = trimmed.indexOf('=');
+    if (eq <= 0) continue;
+    let key = trimmed.slice(0, eq).trim();
+    if (key.startsWith('export ')) key = key.slice('export '.length).trim();
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) continue;
+    let value = trimmed.slice(eq + 1).trim();
+    if (
+      value.length >= 2 &&
+      ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'")))
+    ) {
+      value = value.slice(1, -1);
+    }
+    out[key] = value;
+  }
+  return out;
+}
+
+export function mergeSeedEnv(fileEnv: Record<string, string>, processEnv: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const merged: NodeJS.ProcessEnv = { ...processEnv };
+  for (const [key, value] of Object.entries(fileEnv)) {
+    if (merged[key] === undefined) merged[key] = value;
+  }
+  return merged;
+}
+
+export function seedEnvFilePath(moduleUrl: string = import.meta.url): string {
+  return join(fileURLToPath(new URL('../../../', moduleUrl)), '.env');
+}
+
+export async function loadSeedProcessEnv(options: {
+  processEnv: NodeJS.ProcessEnv;
+  envFilePath: string;
+}): Promise<NodeJS.ProcessEnv> {
+  let text: string;
+  try {
+    text = await readFile(options.envFilePath, 'utf8');
+  } catch (err) {
+    const code = typeof err === 'object' && err !== null && 'code' in err ? err.code : '';
+    if (code === 'ENOENT') return { ...options.processEnv };
+    throw err;
+  }
+  return mergeSeedEnv(parseDotEnv(text), options.processEnv);
 }
 
 export function parseSeedEnv(env: NodeJS.ProcessEnv): SeedEnv {
@@ -231,7 +284,11 @@ export async function seedDemo(pool: DbPool, input: SeedDemoInput): Promise<Seed
 }
 
 async function main(): Promise<void> {
-  const parsed = parseSeedEnv(process.env);
+  const env = await loadSeedProcessEnv({
+    processEnv: process.env,
+    envFilePath: seedEnvFilePath(),
+  });
+  const parsed = parseSeedEnv(env);
   const databaseUrl = rewriteComposeDatabaseUrl(parsed.databaseUrl, await dbHostResolves());
   const pool = createPool(databaseUrl);
   try {

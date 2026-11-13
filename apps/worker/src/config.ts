@@ -11,6 +11,15 @@ const ConfigSchema = z
     REDIS_CONNECT_TIMEOUT_MS: z.coerce.number().int().min(50).max(5_000).default(200),
     REDIS_COMMAND_TIMEOUT_MS: z.coerce.number().int().min(50).max(5_000).default(200),
     SSRF_PROTECTION: booleanFromEnv.default(true),
+    SSRF_HOST_EXCEPTION: z
+      .string()
+      .default('')
+      .transform((value) =>
+        value
+          .split(',')
+          .map((host) => host.trim().toLowerCase())
+          .filter((host) => host.length > 0),
+      ),
     PROBE_MAX_CONCURRENCY: z.coerce.number().int().min(1).max(200).default(20),
     PROBE_MAX_PER_HOST: z.coerce.number().int().min(1).max(20).default(2),
     PROBE_INSECURE_TLS: booleanFromEnv.default(false),
@@ -27,6 +36,11 @@ const ConfigSchema = z
   });
 
 export type WorkerConfig = z.infer<typeof ConfigSchema>;
+
+export function ssrfProtectionWarning(protection: boolean): string | null {
+  if (protection) return null;
+  return 'SSRF_PROTECTION is false: probe hops are not checked against private, loopback, or metadata addresses. This is explicit local debugging only and is not the Compose demo path.';
+}
 
 /** Fails fast at boot with a readable list of invalid keys; never logs values. */
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): WorkerConfig {
