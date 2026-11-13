@@ -99,12 +99,83 @@ describe('probe client', () => {
       expect(blocked.errorCode, url).toBe('SSRF_BLOCKED');
     }
   });
+
+  it('blocks a redirect from the demo host to metadata, loopback, and RFC1918 without a second hop', async () => {
+    const port = new URL(baseUrl).port;
+    const requested: string[] = [];
+    const composeLike = createProbeClient({
+      ssrfProtection: true,
+      insecureTls: false,
+      hostException: ['mock-target'],
+      lookup: async (hostname) => {
+        if (hostname === 'mock-target') return ['127.0.0.1'];
+        throw new Error(`unexpected lookup ${hostname}`);
+      },
+      onRequest: (href) => {
+        requested.push(href);
+      },
+    });
+
+    for (const dest of ['http://169.254.169.254/', 'http://127.0.0.1/', 'http://10.0.0.1/', 'http://192.168.1.1/']) {
+      requested.length = 0;
+      const url = `http://mock-target:${port}/redirect-to?url=${encodeURIComponent(dest)}`;
+      const result = await composeLike.probe(target({ url, timeoutMs: 800 }));
+      expect(result.success, dest).toBe(false);
+      expect(result.errorCode, dest).toBe('SSRF_BLOCKED');
+      expect(requested, dest).toEqual([url]);
+      expect(
+        requested.some((href) => href.startsWith(dest)),
+        dest,
+      ).toBe(false);
+    }
+  });
+
+  it('allows the demo host and still pins mixed-DNS public hosts', async () => {
+    const port = new URL(baseUrl).port;
+    let lookups = 0;
+    const composeLike = createProbeClient({
+      ssrfProtection: true,
+      insecureTls: false,
+      hostException: ['mock-target'],
+      lookup: async (hostname) => {
+        lookups += 1;
+        if (hostname === 'mock-target') return ['127.0.0.1'];
+        throw new Error(`unexpected lookup ${hostname}`);
+      },
+    });
+    const ok = await composeLike.probe(target({ url: `http://mock-target:${port}/health` }));
+    expect(ok.success).toBe(true);
+    expect(lookups).toBe(1);
+
+    const mixed = createProbeClient({
+      ssrfProtection: true,
+      insecureTls: false,
+      lookup: async () => ['8.8.8.8', '10.0.0.1'],
+      onRequest: () => {
+        throw new Error('must not dial mixed DNS');
+      },
+    });
+    const blocked = await mixed.probe(target({ url: 'http://mixed.example/health' }));
+    expect(blocked.errorCode).toBe('SSRF_BLOCKED');
+  });
 });
 
 describe('inspectProbeUrl', () => {
   it('rejects a redirect hop to a private address', async () => {
     const hop = await inspectProbeUrl('http://10.0.0.1/metadata', true, async () => ['10.0.0.1']);
     expect('errorCode' in hop && hop.errorCode === 'SSRF_BLOCKED').toBe(true);
+  });
+
+  it('does not inherit a hostname exception onto the next hop', async () => {
+    const allowed = await inspectProbeUrl('http://mock-target:8080/health', true, async () => ['172.18.0.4'], [
+      'mock-target',
+    ]);
+    expect('url' in allowed).toBe(true);
+
+    for (const hop of ['http://169.254.169.254/', 'http://127.0.0.1/', 'http://10.0.0.1/']) {
+      const blocked = await inspectProbeUrl(hop, true, async () => ['8.8.8.8'], ['mock-target']);
+      expect('errorCode' in blocked && blocked.errorCode === 'SSRF_BLOCKED', hop).toBe(true);
+    }
   });
 });
 

@@ -16,7 +16,7 @@ alwaysApply: false
 
 - Dedicated undici `Agent`; total timeout = `target.timeout_ms`; connect timeout ≤ min(2000, timeout_ms).
 - Read at most 4096 body bytes then abort; follow ≤ 3 redirects manually; `User-Agent: beacon-watch/1.0`; no cookies.
-- With `SSRF_PROTECTION=true`, resolve DNS, reject private/loopback/link-local/metadata addresses, pin the validated IP, and re-check on every redirect hop.
+- With `SSRF_PROTECTION=true`, resolve DNS, reject private/loopback/link-local/metadata addresses, pin the validated IP, and re-check on every redirect hop. An exact `SSRF_HOST_EXCEPTION` hostname (Compose: `mock-target`) may skip the private-IP reject for that hop only; it is not a subnet allowlist and is not inherited by the next Location.
 - Failures are returned as data with an `errorCode`; never retry inside a check.
 
 ## Resilience

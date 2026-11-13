@@ -43,6 +43,10 @@ export interface ProbeClientOptions {
   ssrfProtection: boolean;
   insecureTls: boolean;
   lookup?: AddressLookup;
+  /** Exact hostnames (Compose demo `mock-target`). Not a subnet allowlist; not inherited by later hops. */
+  hostException?: readonly string[];
+  /** Test spy invoked immediately before a socket is opened. */
+  onRequest?: (href: string) => void;
 }
 
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
@@ -55,6 +59,15 @@ async function defaultLookup(hostname: string): Promise<string[]> {
 function isIpLiteral(hostname: string): boolean {
   if (parseIPv4(hostname) !== null) return true;
   return hostname.includes(':');
+}
+
+function normalizeHostname(hostname: string): string {
+  return hostname.trim().toLowerCase().replace(/\.$/, '');
+}
+
+function isExactHostException(hostname: string, hostException: readonly string[]): boolean {
+  const host = normalizeHostname(hostname);
+  return hostException.some((entry) => normalizeHostname(entry) === host);
 }
 
 function headerValue(headers: Record<string, string | string[] | undefined>, name: string): string | undefined {
@@ -182,10 +195,21 @@ async function consumeCappedBody(body: { dump: (opts: { limit: number }) => Prom
 }
 
 function pinLookup(addresses: string[]): LookupFunction {
-  const primary = addresses[0]!;
-  const family = primary.includes(':') ? 6 : 4;
-  return ((_hostname, _options, callback) => {
-    callback(null, primary, family);
+  const mapped = addresses.map((address) => ({
+    address,
+    family: (address.includes(':') ? 6 : 4) as 4 | 6,
+  }));
+  const primary = mapped[0]!;
+  return ((_hostname, options, callback) => {
+    if (typeof options === 'function') {
+      callback = options;
+    }
+    const cb = callback;
+    if (typeof options === 'object' && options?.all) {
+      cb(null, mapped);
+      return;
+    }
+    cb(null, primary.address, primary.family);
   }) as LookupFunction;
 }
 
@@ -193,6 +217,7 @@ export async function inspectProbeUrl(
   raw: string,
   protection: boolean,
   lookup: AddressLookup,
+  hostException: readonly string[] = [],
 ): Promise<{ url: URL; addresses: string[] } | ProbeOutcome> {
   let url: URL;
   try {
@@ -206,6 +231,7 @@ export async function inspectProbeUrl(
   if (!protection) {
     return { url, addresses: [] };
   }
+  const excepted = !isIpLiteral(url.hostname) && isExactHostException(url.hostname, hostException);
   if (isIpLiteral(url.hostname)) {
     if (isBlockedIp(url.hostname)) {
       return failed('SSRF_BLOCKED', 0, 'address is not allowed');
@@ -221,9 +247,11 @@ export async function inspectProbeUrl(
   if (addresses.length === 0) {
     return failed('DNS', 0, 'hostname did not resolve');
   }
-  for (const address of addresses) {
-    if (isBlockedIp(address)) {
-      return failed('SSRF_BLOCKED', 0, 'address is not allowed');
+  if (!excepted) {
+    for (const address of addresses) {
+      if (isBlockedIp(address)) {
+        return failed('SSRF_BLOCKED', 0, 'address is not allowed');
+      }
     }
   }
   return { url, addresses };
@@ -231,6 +259,7 @@ export async function inspectProbeUrl(
 
 export function createProbeClient(options: ProbeClientOptions): ProbeClient {
   const lookup = options.lookup ?? defaultLookup;
+  const hostException = options.hostException ?? [];
 
   return {
     async probe(target: ProbeTarget): Promise<ProbeOutcome> {
@@ -245,7 +274,7 @@ export function createProbeClient(options: ProbeClientOptions): ProbeClient {
 
       try {
         while (true) {
-          const safety = await inspectProbeUrl(currentUrl, options.ssrfProtection, lookup);
+          const safety = await inspectProbeUrl(currentUrl, options.ssrfProtection, lookup, hostException);
           if ('errorCode' in safety) {
             return { ...safety, latencyMs: latency() };
           }
@@ -267,6 +296,7 @@ export function createProbeClient(options: ProbeClientOptions): ProbeClient {
           });
 
           try {
+            options.onRequest?.(safety.url.href);
             const response = await request(safety.url.href, {
               method,
               headers: buildHeaders(target),

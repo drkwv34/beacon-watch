@@ -1,7 +1,7 @@
 import { createPool, migrate } from '@beacon-watch/db';
 import { pino } from 'pino';
 import { createRedis, RedisCache } from './cache/redis-cache.js';
-import { loadConfig } from './config.js';
+import { loadConfig, ssrfProtectionWarning } from './config.js';
 import { runScheduler, sleep } from './modules/scheduling/run-check.js';
 import { HostSemaphore, Semaphore } from './pool/semaphore.js';
 import { createProbeClient } from './probe/client.js';
@@ -25,13 +25,20 @@ const cache = new RedisCache(redis, log);
 const probe = createProbeClient({
   ssrfProtection: config.SSRF_PROTECTION,
   insecureTls: config.PROBE_INSECURE_TLS,
+  hostException: config.SSRF_HOST_EXCEPTION,
 });
 
 const abort = new AbortController();
 
+const insecureSsrf = ssrfProtectionWarning(config.SSRF_PROTECTION);
+if (insecureSsrf) {
+  log.warn(insecureSsrf);
+}
+
 log.info(
   {
     ssrf_protection: config.SSRF_PROTECTION,
+    ssrf_host_exception: config.SSRF_HOST_EXCEPTION,
     probe_max_concurrency: config.PROBE_MAX_CONCURRENCY,
     probe_max_per_host: config.PROBE_MAX_PER_HOST,
   },

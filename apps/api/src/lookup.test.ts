@@ -55,4 +55,17 @@ describe('assertUrlAllowed', () => {
       assertUrlAllowed('https://example.com/health', protectedConfig, async () => ['93.184.216.34']),
     ).resolves.toBeUndefined();
   });
+
+  it('does not follow redirects or fetch the target', async () => {
+    const resolved: string[] = [];
+    await assertUrlAllowed(
+      'http://example.com/redirect-to?url=http://169.254.169.254/',
+      protectedConfig,
+      async (hostname) => {
+        resolved.push(hostname);
+        return ['93.184.216.34'];
+      },
+    );
+    expect(resolved).toEqual(['example.com']);
+  });
 });
