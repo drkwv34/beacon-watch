@@ -32,6 +32,14 @@ describe('mock-target admin flap', () => {
     expect(await up.json()).toEqual({ status: 'ok' });
   });
 
+  it('redirects to an absolute url query value', async () => {
+    const res = await fetch(`http://127.0.0.1:${listening.port}/redirect-to?url=http://169.254.169.254/`, {
+      redirect: 'manual',
+    });
+    expect(res.status).toBe(302);
+    expect(res.headers.get('location')).toBe('http://169.254.169.254/');
+  });
+
   it('auto-restores after seconds=', async () => {
     const fail = await fetch(`http://127.0.0.1:${listening.port}/admin/fail?seconds=1`, { method: 'POST' });
     expect((await fail.json()).restore_after_seconds).toBe(1);

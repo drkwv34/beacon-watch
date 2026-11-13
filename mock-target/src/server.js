@@ -88,6 +88,17 @@ export function handleRequest(req, res) {
     return;
   }
 
+  if (url.pathname === '/redirect-to') {
+    const to = url.searchParams.get('url') ?? '';
+    if (!to.startsWith('http://') && !to.startsWith('https://')) {
+      sendJson(res, 400, { error: 'invalid_redirect_url' }, method);
+      return;
+    }
+    res.writeHead(302, { location: to });
+    res.end();
+    return;
+  }
+
   const redirectMatch = /^\/redirect\/(\d+)$/.exec(url.pathname);
   if (redirectMatch) {
     const remaining = Number(redirectMatch[1]);
