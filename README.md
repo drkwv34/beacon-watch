@@ -15,7 +15,7 @@ beacon-watch is a portfolio-sized implementation of that problem with production
 ## Demo
 
 ```bash
-cp .env.example .env          # optional; Compose already has safe local defaults
+cp .env.example .env          # required for host `pnpm seed` (Compose services have their own defaults)
 docker compose up --build --wait
 pnpm seed                     # demo@beacon.local / DEMO_PASSWORD, slug demo, plus a paused target
 ```

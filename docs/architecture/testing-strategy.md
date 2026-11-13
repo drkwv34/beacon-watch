@@ -32,8 +32,7 @@ Playwright against the published web port. Bring the full stack up first (`mock-
 
 ```bash
 docker compose --env-file .env.example up -d --wait
-DATABASE_URL=postgresql://beacon:beacon-local-only@127.0.0.1:5432/beacon \
-DEMO_PASSWORD=demo-password-change-me \
+cp .env.example .env
 pnpm seed
 PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 \
 E2E_TARGET_URL=http://mock-target:8080/health \
