@@ -66,6 +66,7 @@ export async function seedDueTarget(
     recoveryThreshold?: number;
     isPublic?: boolean;
     publicSlug?: string | null;
+    enabled?: boolean;
   } = {},
 ): Promise<TargetRow> {
   const user = await insertUser(pool, {
@@ -84,7 +85,7 @@ export async function seedDueTarget(
     body: null,
     graceThreshold: overrides.graceThreshold ?? 2,
     recoveryThreshold: overrides.recoveryThreshold ?? 2,
-    enabled: true,
+    enabled: overrides.enabled ?? true,
     isPublic: overrides.isPublic ?? false,
     publicSlug: overrides.publicSlug ?? null,
     now,

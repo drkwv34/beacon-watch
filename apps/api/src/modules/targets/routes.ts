@@ -29,11 +29,12 @@ export async function registerTargetRoutes(app: FastifyInstance, targets: Target
     return targets.get(user.id, id);
   });
 
-  app.post('/targets/:id/check-now', async (request) => {
+  app.post('/targets/:id/check-now', async (request, reply) => {
     const user = request.authUser;
     if (!user) throw new DomainError('UNAUTHENTICATED', 'Authentication required');
     const { id } = request.params as { id: string };
-    return targets.checkNow(user.id, id);
+    const body = await targets.checkNow(user.id, id);
+    return reply.status(202).send(body);
   });
 
   app.patch('/targets/:id', async (request) => {

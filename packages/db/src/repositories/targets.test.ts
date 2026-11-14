@@ -25,6 +25,9 @@ function row(overrides: Partial<TargetRow> = {}): TargetRow {
     lastStatus: 'unknown',
     lastCheckedAt: null,
     nextCheckAt: now,
+    probeLeaseToken: null,
+    probeLeaseExpiresAt: null,
+    manualCheckRequested: false,
     createdAt: now,
     updatedAt: now,
     ...overrides,
@@ -42,5 +45,18 @@ describe('toPublicTarget', () => {
 
   it('includes latest latency when provided', () => {
     expect(toPublicTarget(row(), { latencyMs: 42 }).latency_ms).toBe(42);
+  });
+
+  it('omits probe lease fields from the public envelope', () => {
+    const json = toPublicTarget(
+      row({
+        probeLeaseToken: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        probeLeaseExpiresAt: new Date('2026-10-14T00:00:30.000Z'),
+        manualCheckRequested: true,
+      }),
+    );
+    expect(json).not.toHaveProperty('probe_lease_token');
+    expect(json).not.toHaveProperty('probe_lease_expires_at');
+    expect(json).not.toHaveProperty('manual_check_requested');
   });
 });

@@ -1,7 +1,8 @@
 import {
   asTargetId,
   asUserId,
-  computeNextCheckAt,
+  computeProbeLeaseExpiry,
+  probeLeaseIsActive,
   type HttpMethod,
   type TargetHeaders,
   type TargetId,
@@ -32,6 +33,9 @@ export interface TargetRow {
   lastStatus: TargetStatus;
   lastCheckedAt: Date | null;
   nextCheckAt: Date;
+  probeLeaseToken: string | null;
+  probeLeaseExpiresAt: Date | null;
+  manualCheckRequested: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -57,6 +61,9 @@ interface TargetRecord {
   last_status: TargetStatus;
   last_checked_at: Date | null;
   next_check_at: Date;
+  probe_lease_token: string | null;
+  probe_lease_expires_at: Date | null;
+  manual_check_requested: boolean;
   created_at: Date;
   updated_at: Date;
 }
@@ -83,6 +90,9 @@ export function mapTarget(row: TargetRecord): TargetRow {
     lastStatus: row.last_status,
     lastCheckedAt: row.last_checked_at,
     nextCheckAt: row.next_check_at,
+    probeLeaseToken: row.probe_lease_token,
+    probeLeaseExpiresAt: row.probe_lease_expires_at,
+    manualCheckRequested: row.manual_check_requested,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -284,14 +294,13 @@ export async function deleteTarget(db: Queryable, id: TargetId): Promise<boolean
   return (result.rowCount ?? 0) > 0;
 }
 
-export async function claimDueTargets(
-  db: Queryable,
-  input: { now: Date; limit: number; random: () => number },
-): Promise<TargetRow[]> {
+export async function claimDueTargets(db: Queryable, input: { now: Date; limit: number }): Promise<TargetRow[]> {
   if (input.limit <= 0) return [];
   const { rows } = await db.query<TargetRecord>(
     `SELECT * FROM targets
-     WHERE enabled AND next_check_at <= $1
+     WHERE enabled
+       AND (probe_lease_expires_at IS NULL OR probe_lease_expires_at <= $1)
+       AND (next_check_at <= $1 OR manual_check_requested)
      ORDER BY next_check_at ASC, id ASC
      FOR UPDATE SKIP LOCKED
      LIMIT $2`,
@@ -299,10 +308,16 @@ export async function claimDueTargets(
   );
   const claimed: TargetRow[] = [];
   for (const row of rows) {
-    const nextCheckAt = computeNextCheckAt(input.now, row.interval_seconds, input.random);
+    const expiresAt = computeProbeLeaseExpiry(input.now, row.timeout_ms);
     const updated = await db.query<TargetRecord>(
-      `UPDATE targets SET next_check_at = $2, updated_at = $3 WHERE id = $1 RETURNING *`,
-      [row.id, nextCheckAt, input.now],
+      `UPDATE targets SET
+         probe_lease_token = gen_random_uuid(),
+         probe_lease_expires_at = $2,
+         manual_check_requested = false,
+         updated_at = $3
+       WHERE id = $1
+       RETURNING *`,
+      [row.id, expiresAt, input.now],
     );
     claimed.push(mapTarget(updated.rows[0]!));
   }
@@ -323,6 +338,41 @@ export async function setNextCheckAt(
   return row ? mapTarget(row) : undefined;
 }
 
+export async function requestManualCheck(db: Queryable, id: TargetId, now: Date): Promise<TargetRow | undefined> {
+  const locked = await lockTargetForUpdate(db, id);
+  if (!locked) return undefined;
+  if (!locked.enabled) return locked;
+  if (probeLeaseIsActive(locked.probeLeaseExpiresAt, now) && locked.probeLeaseToken) {
+    return locked;
+  }
+  const { rows } = await db.query<TargetRecord>(
+    `UPDATE targets SET
+       next_check_at = $2,
+       manual_check_requested = true,
+       updated_at = $3
+     WHERE id = $1
+     RETURNING *`,
+    [id, now, now],
+  );
+  const row = rows[0];
+  return row ? mapTarget(row) : undefined;
+}
+
+export async function renewProbeLease(
+  db: Queryable,
+  id: TargetId,
+  token: string,
+  expiresAt: Date,
+  now: Date,
+): Promise<boolean> {
+  const result = await db.query(
+    `UPDATE targets SET probe_lease_expires_at = $3, updated_at = $4
+     WHERE id = $1 AND probe_lease_token = $2`,
+    [id, token, expiresAt, now],
+  );
+  return (result.rowCount ?? 0) > 0;
+}
+
 export async function lockTargetForUpdate(db: Queryable, id: TargetId): Promise<TargetRow | undefined> {
   const { rows } = await db.query<TargetRecord>(`SELECT * FROM targets WHERE id = $1 FOR UPDATE`, [id]);
   const row = rows[0];
@@ -338,6 +388,9 @@ export async function updateTargetAfterCheck(
     consecutiveFailures: number;
     consecutiveSuccesses: number;
     now: Date;
+    nextCheckAt?: Date;
+    clearLease?: boolean;
+    leaseToken?: string;
   },
 ): Promise<TargetRow | undefined> {
   const { rows } = await db.query<TargetRecord>(
@@ -346,10 +399,24 @@ export async function updateTargetAfterCheck(
        last_status = $3,
        consecutive_failures = $4,
        consecutive_successes = $5,
-       updated_at = $6
+       updated_at = $6,
+       next_check_at = COALESCE($7::timestamptz, next_check_at),
+       probe_lease_token = CASE WHEN $8::boolean THEN NULL ELSE probe_lease_token END,
+       probe_lease_expires_at = CASE WHEN $8::boolean THEN NULL ELSE probe_lease_expires_at END
      WHERE id = $1
+       AND ($9::uuid IS NULL OR probe_lease_token = $9)
      RETURNING *`,
-    [id, patch.lastCheckedAt, patch.lastStatus, patch.consecutiveFailures, patch.consecutiveSuccesses, patch.now],
+    [
+      id,
+      patch.lastCheckedAt,
+      patch.lastStatus,
+      patch.consecutiveFailures,
+      patch.consecutiveSuccesses,
+      patch.now,
+      patch.nextCheckAt ?? null,
+      patch.clearLease === true,
+      patch.leaseToken ?? null,
+    ],
   );
   const row = rows[0];
   return row ? mapTarget(row) : undefined;

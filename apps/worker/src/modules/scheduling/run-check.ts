@@ -4,6 +4,7 @@ import {
   insertCheck,
   insertOpenIncident,
   lockTargetForUpdate,
+  renewProbeLease,
   resolveIncident,
   updateTargetAfterCheck,
   withTransaction,
@@ -13,6 +14,8 @@ import {
 } from '@beacon-watch/db';
 import {
   applyCheckResult,
+  computeNextCheckAt,
+  computeProbeLeaseExpiry,
   truncateErrorMessage,
   type ProbeErrorCode,
   type TargetId,
@@ -72,6 +75,7 @@ export async function persistCheck(
   checkedAt: Date,
   result: ProbeOutcome,
   cache?: RedisCache,
+  lease?: { token: string; random: () => number },
 ): Promise<CheckRow | undefined> {
   let slug: string | null = null;
   let intervalSeconds = 60;
@@ -79,6 +83,7 @@ export async function persistCheck(
   const inserted = await withTransaction(pool, async (tx) => {
     const locked = await lockTargetForUpdate(tx, targetId);
     if (!locked) return undefined;
+    if (lease && locked.probeLeaseToken !== lease.token) return undefined;
     slug = locked.publicSlug;
     intervalSeconds = locked.intervalSeconds;
     const check = await insertCheck(tx, {
@@ -101,13 +106,23 @@ export async function persistCheck(
       { grace: locked.graceThreshold, recovery: locked.recoveryThreshold },
     );
     lastStatus = transition.counters.hasOpenIncident ? 'down' : result.success ? 'up' : locked.lastStatus;
-    await updateTargetAfterCheck(tx, targetId, {
+    const updated = await updateTargetAfterCheck(tx, targetId, {
       lastCheckedAt: checkedAt,
       lastStatus,
       consecutiveFailures: transition.counters.consecutiveFailures,
       consecutiveSuccesses: transition.counters.consecutiveSuccesses,
       now: checkedAt,
+      ...(lease
+        ? {
+            nextCheckAt: computeNextCheckAt(checkedAt, locked.intervalSeconds, lease.random),
+            clearLease: true,
+            leaseToken: lease.token,
+          }
+        : {}),
     });
+    if (lease && !updated) {
+      throw new Error('probe lease lost during persist');
+    }
     if (transition.action === 'open') {
       await insertOpenIncident(tx, {
         targetId,
@@ -139,6 +154,17 @@ export async function runClaimedCheck(deps: SchedulerDeps, target: TargetRow): P
   const checkedAt = deps.now();
   const log = deps.log.child({ target_id: target.id });
   try {
+    const token = target.probeLeaseToken;
+    if (!token) return;
+    const stillOwned = await renewProbeLease(
+      deps.pool,
+      target.id,
+      token,
+      computeProbeLeaseExpiry(checkedAt, target.timeoutMs),
+      checkedAt,
+    );
+    if (!stillOwned) return;
+
     let result: ProbeOutcome;
     try {
       result = await deps.probe.probe(asProbeTarget(target));
@@ -147,7 +173,10 @@ export async function runClaimedCheck(deps: SchedulerDeps, target: TargetRow): P
       result = internalFailure(err);
     }
 
-    const check = await persistCheck(deps.pool, target.id, checkedAt, result, deps.cache);
+    const check = await persistCheck(deps.pool, target.id, checkedAt, result, deps.cache, {
+      token,
+      random: deps.random,
+    });
 
     log.info(
       {
@@ -170,9 +199,7 @@ export async function tick(deps: SchedulerDeps): Promise<number> {
   if (permits === 0) return 0;
   let claimed: TargetRow[];
   try {
-    claimed = await withTransaction(deps.pool, (tx) =>
-      claimDueTargets(tx, { now: deps.now(), limit: permits, random: deps.random }),
-    );
+    claimed = await withTransaction(deps.pool, (tx) => claimDueTargets(tx, { now: deps.now(), limit: permits }));
   } catch (err) {
     for (let i = 0; i < permits; i += 1) deps.global.release();
     throw err;

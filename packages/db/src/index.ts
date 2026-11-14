@@ -30,6 +30,8 @@ export {
   claimDueTargets,
   lockTargetForUpdate,
   setNextCheckAt,
+  requestManualCheck,
+  renewProbeLease,
   updateTargetAfterCheck,
   mapTarget,
   toPublicTarget,
