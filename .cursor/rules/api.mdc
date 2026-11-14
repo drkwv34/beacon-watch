@@ -11,5 +11,5 @@ alwaysApply: false
 - Throw `DomainError`; the central handler in `src/app.ts` maps codes to HTTP and the `{ error: { code, message, request_id } }` envelope.
 - Public routes (`/api/public/v1/*`) return 404 for private or missing targets alike, and are rate limited per IP (fail closed if Redis is down).
 - `snake_case` JSON, ISO-8601 UTC timestamps, `/api/v1` prefix for authenticated routes.
-- The API never makes outbound HTTP calls to targets. "Check now" only sets `next_check_at = now()`.
+- The API never makes outbound HTTP calls to targets. `POST /targets/:id/check-now` returns 202: idle enabled targets become due; an active probe lease is left unchanged; paused targets are not re-enabled.
 - Test routes with `app.inject()`; integration tests hit real Postgres/Redis service containers.

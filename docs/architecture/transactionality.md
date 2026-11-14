@@ -11,18 +11,27 @@
 
 ```
 tx1 (short): claim due targets
-  SELECT … FROM targets WHERE enabled AND next_check_at <= now()
-  ORDER BY next_check_at FOR UPDATE SKIP LOCKED LIMIT $batch;
-  UPDATE targets SET next_check_at = now() + interval + jitter  -- lease: pushes the row out of the due set
+  SELECT … FROM targets
+   WHERE enabled
+     AND (probe_lease_expires_at IS NULL OR probe_lease_expires_at <= now())
+     AND (next_check_at <= now() OR manual_check_requested)
+   ORDER BY next_check_at FOR UPDATE SKIP LOCKED LIMIT $batch;
+  UPDATE targets SET probe_lease_token, probe_lease_expires_at,  -- explicit lease
+                     manual_check_requested = false
 COMMIT
 
 probe (no transaction held)
+  after per-host acquire: renew the same token (drop the work if the token no longer matches)
 
 tx2 (short): record result
   SELECT … FROM targets WHERE id = $1 FOR UPDATE;           -- serialize counter updates per target
+  -- if probe_lease_token ≠ owner token: no-op (stale worker)
   INSERT INTO checks …;
   domain.applyCheckResult(counters, success, thresholds)     -- pure
-  UPDATE targets SET counters, last_status, last_checked_at;
+  UPDATE targets SET counters, last_status, last_checked_at,
+                     probe_lease_token = NULL, probe_lease_expires_at = NULL,
+                     next_check_at = completion + interval + jitter
+   WHERE probe_lease_token = owner token;
   INSERT/UPDATE incidents (if action = open | resolve);
 COMMIT
 
@@ -30,14 +39,14 @@ after commit: write Redis cache, invalidate status page (best effort)
 ```
 
 Why two transactions: holding a lock across a 10s probe would block the API from editing the target and waste pool connections.
-Advancing `next_check_at` in tx1 is the lease; a crashed worker simply lets the row become due again at the next interval.
+The lease is `probe_lease_token` + `probe_lease_expires_at`, not a future `next_check_at`. A crashed worker is reclaimed when the expiry passes; a stale persist cannot clear a newer token. Lease expiry is `timeout_ms` plus grace covering per-host semaphore wait.
 
 ## Idempotency and constraints
 
 - The partial unique index `incidents(target_id) WHERE status = 'open'` is the final guard against duplicate open incidents.
   A unique violation there is treated as "already open" (no-op), not an error.
 - `public_slug` uniqueness is a DB constraint; map `23505` on that index to `CONFLICT`.
-- `POST /targets/:id/check-now` sets `next_check_at = now()`: naturally idempotent.
+- `POST /targets/:id/check-now` returns 202. Idle enabled targets set `next_check_at = now()` and `manual_check_requested`; an in-flight lease is left unchanged (the current probe satisfies the request); paused targets are not re-enabled.
 - Cache writes happen **after commit** only. A failed cache write logs `warn` and never rolls back persisted data.
 
 ## Concurrency limits (FR-SCH-005)

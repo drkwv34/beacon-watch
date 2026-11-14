@@ -8,7 +8,7 @@ Test hard edges and contracts thoroughly; don't chase line coverage on scaffoldi
 | --- | --- | --- | --- |
 | Unit | Vitest | `packages/domain` (incident machine including fail/success no-noise and fail/fail open, jitter, scheduling math, SSRF classifier, rate-limit math, public empty-state copy), config parsing, error mapping, badge/empty-state mapping | Every push/PR |
 | API | Vitest + `app.inject()` | Route validation, error envelope, authz (401 on `/api/v1/__probe`, 403 vs 404 on public routes) without a network socket | Every push/PR |
-| Integration | Vitest + Postgres 16 + Redis 7 + in-process mock-target | Auth sessions, target CRUD/create-time SSRF/ownership, `SKIP LOCKED` lease / no double-check, scheduler `tick` global and per-host semaphores, incident open/resolve sequences, public 429 bursts with unique IPs, Redis-down fail-closed | Every PR (`*.int.test.ts`; missing `DATABASE_URL`/`REDIS_URL` fails the job in CI) |
+| Integration | Vitest + Postgres 16 + Redis 7 + in-process mock-target | Auth sessions, target CRUD/create-time SSRF/ownership, `SKIP LOCKED` probe lease / no double-check, check-now 202 coalescing, scheduler `tick` global and per-host semaphores, incident open/resolve sequences, public 429 bursts with unique IPs, Redis-down fail-closed | Every PR (`*.int.test.ts`; missing `DATABASE_URL`/`REDIS_URL` fails the job in CI) |
 | Contract | Vitest + Zod schema | Public status JSON shape (SRS Appendix A) | Every PR |
 | E2E | Playwright | Login → add mock-target monitor → labelled status on dashboard and `/s/[slug]`; seeded `demo` monitor flaps red then green (NFR-PORT-001) (`pnpm test:e2e` against Compose) | Every PR and `main` (Compose `--wait` + host Playwright). Do not skip this job. |
 

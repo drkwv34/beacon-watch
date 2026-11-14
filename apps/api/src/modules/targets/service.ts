@@ -16,7 +16,7 @@ import {
   insertTarget,
   latestLatencyByTargetIds,
   listTargetsForUser,
-  setNextCheckAt,
+  requestManualCheck,
   toPublicTarget,
   updateTarget,
   withTransaction,
@@ -98,7 +98,7 @@ export class TargetService {
     const existing = await loadOwned(this.pool, userId, id);
     const now = this.now();
     const row = await withTransaction(this.pool, async (tx) => {
-      const updated = await setNextCheckAt(tx, existing.id, now, now);
+      const updated = await requestManualCheck(tx, existing.id, now);
       if (!updated) throw new DomainError('NOT_FOUND', 'Target not found');
       return updated;
     });

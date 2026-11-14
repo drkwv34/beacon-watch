@@ -155,14 +155,22 @@ describe.skipIf(skip)('owner checks and check-now', () => {
     });
     expect(missing.statusCode).toBe(404);
 
+    const csrf = await app.inject({
+      method: 'POST',
+      url: `/api/v1/targets/${id}/check-now`,
+      headers: { cookie: owner.header },
+    });
+    expect(csrf.statusCode).toBe(403);
+    expect((await findTargetById(pool, asTargetId(id)))?.nextCheckAt).toEqual(before?.nextCheckAt);
+
     const ok = await app.inject({
       method: 'POST',
       url: `/api/v1/targets/${id}/check-now`,
       headers: { cookie: owner.header, 'x-csrf-token': owner.csrf },
     });
-    expect(ok.statusCode).toBe(200);
+    expect(ok.statusCode).toBe(202);
     const after = await findTargetById(pool, asTargetId(id));
     expect(after?.nextCheckAt).toEqual(NOW);
-    expect(ok.json()).toMatchObject({ id, latency_ms: null });
+    expect(ok.json()).toMatchObject({ id, latency_ms: null, enabled: true });
   });
 });

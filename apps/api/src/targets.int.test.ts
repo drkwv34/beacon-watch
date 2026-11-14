@@ -186,6 +186,44 @@ describe.skipIf(skip)('targets integration', () => {
     const listed = await app.inject({ method: 'GET', url: '/api/v1/targets', headers: { cookie: other.header } });
     expect(listed.json().items).toEqual([]);
   });
+
+  it('accepts check-now with 202 and does not reactivate a paused target', async () => {
+    const auth = await register(app, 'now@example.com');
+    const headers = { cookie: auth.header, 'x-csrf-token': auth.csrf };
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/v1/targets',
+      headers,
+      payload: { name: 'Live', url: 'https://example.com/health' },
+    });
+    expect(created.statusCode).toBe(201);
+    const id = created.json().id as string;
+
+    const queued = await app.inject({
+      method: 'POST',
+      url: `/api/v1/targets/${id}/check-now`,
+      headers,
+    });
+    expect(queued.statusCode).toBe(202);
+    expect(queued.json()).toMatchObject({ id, enabled: true, name: 'Live' });
+
+    const paused = await app.inject({
+      method: 'PATCH',
+      url: `/api/v1/targets/${id}`,
+      headers,
+      payload: { enabled: false },
+    });
+    expect(paused.statusCode).toBe(200);
+    expect(paused.json().enabled).toBe(false);
+
+    const again = await app.inject({
+      method: 'POST',
+      url: `/api/v1/targets/${id}/check-now`,
+      headers,
+    });
+    expect(again.statusCode).toBe(202);
+    expect(again.json()).toMatchObject({ id, enabled: false, last_status: 'paused' });
+  });
 });
 
 describe.skipIf(skip)('targets allowlist', () => {

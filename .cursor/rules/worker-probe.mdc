@@ -8,8 +8,8 @@ alwaysApply: false
 
 ## Scheduling
 
-- Claim due rows with `SELECT … FOR UPDATE SKIP LOCKED LIMIT n` and advance `next_check_at = now + interval + jitter(0–10%)` in the same short transaction (the lease).
-- Probe **outside** any transaction; record the result in a second short transaction that locks the target row, inserts the check, applies the domain incident transition, and updates counters.
+- Claim due rows with `SELECT … FOR UPDATE SKIP LOCKED LIMIT n` where the probe lease is absent or expired (and `next_check_at` is due or `manual_check_requested`). Stamp `probe_lease_token` + `probe_lease_expires_at` in that short transaction. Do not use `next_check_at` as the in-flight lock.
+- Probe **outside** any transaction; renew the lease after the per-host acquire; record the result in a second short transaction that locks the target row, inserts the check only if the token still matches, applies the domain incident transition, updates counters, releases the lease, and sets `next_check_at = completion + interval + jitter(0–10%)`.
 - Never use `setInterval` as the scheduler of record; the loop polls the DB for due work.
 
 ## Probe client (`src/probe/`, normative: docs/architecture/external-integrations.md)

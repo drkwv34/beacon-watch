@@ -1,10 +1,13 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
+  claimDueTargets,
   countChecksForTarget,
   findOpenIncident,
   findTargetById,
   listChecksForTarget,
   listIncidentsForTarget,
+  requestManualCheck,
+  withTransaction,
   type DbPool,
 } from '@beacon-watch/db';
 import { persistCheck, tick } from './run-check.js';
@@ -71,6 +74,10 @@ describe.skipIf(skip)('scheduler integration', () => {
     expect(checks[0]?.success).toBe(true);
     expect(checks[0]?.statusCode).toBe(200);
     expect(checks[0]?.errorCode).toBeNull();
+    const after = await findTargetById(pool, target.id);
+    expect(after?.nextCheckAt.toISOString()).toBe('2026-10-15T00:01:00.000Z');
+    expect(after?.probeLeaseToken).toBeNull();
+    expect(after?.probeLeaseExpiresAt).toBeNull();
   });
 
   it('records TIMEOUT against mock-target /slow without hanging the pool', async () => {
@@ -201,5 +208,96 @@ describe.skipIf(skip)('scheduler integration', () => {
     );
     expect(n).toBe(3);
     expect(peak).toBe(1);
+  });
+
+  it('runs exactly one probe per target when check-now arrives during in-flight work', async () => {
+    const now = new Date('2026-10-15T00:00:00.000Z');
+    const targets = [];
+    for (let i = 0; i < 6; i += 1) {
+      targets.push(await seedDueTarget(pool, now, { url: `${baseUrl}/health?n=${i}`, timeoutMs: 4000 }));
+    }
+
+    let inFlight = 0;
+    let peak = 0;
+    let started = 0;
+    let releaseFirstWave!: () => void;
+    const firstWaveStarted = new Promise<void>((resolve) => {
+      releaseFirstWave = resolve;
+    });
+    let releaseProbes!: () => void;
+    const probesMayFinish = new Promise<void>((resolve) => {
+      releaseProbes = resolve;
+    });
+    const probeCounts = new Map<string, number>();
+    const gated: ProbeClient = {
+      async probe(input: ProbeTarget): Promise<ProbeOutcome> {
+        probeCounts.set(input.url, (probeCounts.get(input.url) ?? 0) + 1);
+        inFlight += 1;
+        peak = Math.max(peak, inFlight);
+        started += 1;
+        if (started === 2) releaseFirstWave();
+        await probesMayFinish;
+        inFlight -= 1;
+        return okOutcome();
+      },
+    };
+
+    const workerA = tick(
+      schedulerDeps(pool, gated, {
+        now: () => now,
+        global: new Semaphore(6),
+        perHost: new HostSemaphore(2),
+      }),
+    );
+    await firstWaveStarted;
+    await Promise.all(targets.map((target) => withTransaction(pool, (tx) => requestManualCheck(tx, target.id, now))));
+    const workerB = tick(
+      schedulerDeps(pool, gated, {
+        now: () => now,
+        global: new Semaphore(6),
+        perHost: new HostSemaphore(2),
+      }),
+    );
+    releaseProbes();
+    const [claimedA, claimedB] = await Promise.all([workerA, workerB]);
+    expect(claimedA + claimedB).toBe(6);
+    expect(peak).toBeLessThanOrEqual(2);
+    for (const target of targets) {
+      expect(await countChecksForTarget(pool, target.id), target.url).toBe(1);
+      expect(probeCounts.get(target.url) ?? 0, target.url).toBe(1);
+    }
+  }, 15_000);
+
+  it('does not claim a paused target after check-now', async () => {
+    const now = new Date('2026-10-15T00:00:00.000Z');
+    const paused = await seedDueTarget(pool, now, { url: `${baseUrl}/health`, enabled: false });
+    await withTransaction(pool, (tx) => requestManualCheck(tx, paused.id, now));
+    const n = await tick(schedulerDeps(pool, probe, { now: () => now }));
+    expect(n).toBe(0);
+    expect(await countChecksForTarget(pool, paused.id)).toBe(0);
+    const row = await findTargetById(pool, paused.id);
+    expect(row?.enabled).toBe(false);
+  });
+
+  it('does not persist a stale owner after the lease is reclaimed', async () => {
+    const now = new Date('2026-10-15T00:00:00.000Z');
+    const target = await seedDueTarget(pool, now, { url: `${baseUrl}/health` });
+    const [first] = await withTransaction(pool, (tx) => claimDueTargets(tx, { now, limit: 1 }));
+    const staleToken = first?.probeLeaseToken;
+    expect(staleToken).toEqual(expect.any(String));
+    await pool.query('UPDATE targets SET probe_lease_expires_at = $2 WHERE id = $1', [
+      target.id,
+      new Date('2026-10-14T00:00:00.000Z'),
+    ]);
+    const [second] = await withTransaction(pool, (tx) => claimDueTargets(tx, { now, limit: 1 }));
+    expect(second?.probeLeaseToken).not.toBe(staleToken);
+    const inserted = await persistCheck(pool, target.id, now, okOutcome(), undefined, {
+      token: staleToken!,
+      random: () => 0,
+    });
+    expect(inserted).toBeUndefined();
+    expect(await countChecksForTarget(pool, target.id)).toBe(0);
+    const row = await findTargetById(pool, target.id);
+    expect(row?.probeLeaseToken).toBe(second?.probeLeaseToken);
   });
 });
