@@ -6,7 +6,7 @@ One folder per capability, each with a `spec.md` describing behavior that is **s
 | --- | --- | --- | --- |
 | Auth and sessions | `auth/` | FR-AUTH-001..002, NFR-SEC-001 | Register/login/logout, Argon2id, Postgres sessions, CSRF; FR-AUTH-003 API tokens is Should |
 | Targets | `targets/` | FR-TGT-001..003, FR-ERR-003 | CRUD, pause, hard delete, create-time SSRF, empty dashboard |
-| Scheduling | `scheduling/` | FR-SCH-001, FR-SCH-003..005, NFR-PERF-002 | SKIP LOCKED claim, jitter lease, check persist, probe semaphores |
+| Scheduling | `scheduling/` | FR-SCH-001, FR-SCH-003..005, NFR-PERF-002 | SKIP LOCKED claim, explicit probe lease, completion jitter, check persist, probe semaphores |
 | Probe | `probe/` | FR-SCH-002, Appendix C, NFR-SEC-001, FR-ERR-002 | Isolated worker client, timeouts, 4 KiB cap, ≤3 redirects, probe-time SSRF |
 | Incidents | `incidents/` | FR-INC-001..004, Appendix B, NFR-REL-002 | Grace/recovery machine, same-tx persist, owner timeline |
 | Caching | `caching/` | FR-CACHE-001..003, NFR-REL-001 | Redis latest/statuspage keys; Postgres fallback; NFR-PERF-001 p95 is a local bench, not a CI gate |
@@ -30,6 +30,7 @@ Observability (NFR-OBS-001 check logs, FR-ERR-001 envelope) is specified in `doc
 9. ~~`add-pin-ready-closeout`~~ archived 2026-10-21.
 10. ~~`secure-probe-redirects`~~ archived 2026-11-13.
 11. ~~`load-seed-environment`~~ archived 2026-11-13.
+12. ~~`preserve-probe-leases`~~ archived 2026-11-14.
 
 Format for a capability `spec.md`:
 
