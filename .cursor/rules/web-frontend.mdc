@@ -6,7 +6,7 @@ alwaysApply: false
 
 # apps/web
 
-- App Router, server components by default, `'use client'` only for interactive leaves. Data via the API (`API_BASE_URL`), never `packages/db`.
+- App Router, server components by default, `'use client'` only for interactive leaves. Dashboard data via the API (`API_BASE_URL`). `/s/[slug]` is the exception: a `server-only` reader over `packages/db` (`is_public` filter, strict public DTO, `DATABASE_URL` never `NEXT_PUBLIC`).
 - Styling: tokens in `src/app/globals.css` only (`--color-*`, `--space-*`, `--radius-*`). No hex values or magic pixel sizes in components. No UI kit.
 - Layout: single column, max width `--content-max`, mobile-first, must work at 375px. Skip link + `<main id="main">`.
 - Status is never color-only: use `StatusBadge` (text + dot).

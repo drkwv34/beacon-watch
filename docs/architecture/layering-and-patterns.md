@@ -40,3 +40,4 @@ packages/db/src/repositories/targets.ts
 - `setInterval` scheduling inside the API or Next.js (see ADR 0001).
 - Reading `process.env` outside `config.ts`.
 - `new Date()` inside domain code; inject `now` instead.
+- Importing `packages/db` from `apps/web` except the documented `server-only` public status reader for `/s/[slug]`.

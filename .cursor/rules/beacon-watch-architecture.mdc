@@ -13,7 +13,7 @@ Read `docs/architecture/README.md` and the topic doc for whatever you touch befo
 - `packages/domain` pure TS (types, error codes, incident machine) · `packages/db` forward-only migrations + repositories
 - `mock-target` deterministic HTTP server for Compose/CI
 
-Dependency direction: `apps/* → packages/db → packages/domain`. `apps/web` may import only types from `packages/domain` and talks to the API over HTTP.
+Dependency direction: `apps/* → packages/db → packages/domain`. `apps/web` dashboard talks to the API over HTTP; `/s/[slug]` SSR may import `packages/db` from a `server-only` reader (`DATABASE_URL` never `NEXT_PUBLIC`).
 
 ## Hard rules
 

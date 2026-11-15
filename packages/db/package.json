@@ -8,6 +8,11 @@
       "@beacon-watch/source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./public-status": {
+      "@beacon-watch/source": "./src/public-status.ts",
+      "types": "./dist/public-status.d.ts",
+      "default": "./dist/public-status.js"
     }
   },
   "files": [

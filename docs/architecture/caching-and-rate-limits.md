@@ -25,7 +25,7 @@ aside from `request_id`.
 | Path | Redis unavailable | Why |
 | --- | --- | --- |
 | Worker writes check | Persist to Postgres, log `warn`, skip cache | Data first |
-| Dashboard / status HTML page | Read from Postgres, log `warn` | Status pages must stay up |
+| Dashboard / status HTML page | `apps/web` SSR reads Postgres via a server-only `packages/db` reader (not the public JSON API) | Status pages must stay up when Redis is down |
 | Public JSON API **cache read** | Fall back to Postgres | Same |
 | Public JSON API **rate limiter** | **Fail closed: 503 `DEPENDENCY_UNAVAILABLE`** | Without a limiter the public API is an abuse vector |
 

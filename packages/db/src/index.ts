@@ -60,6 +60,7 @@ export {
   OPEN_INCIDENT_INDEX,
   type IncidentRow,
 } from './repositories/incidents.js';
+export { loadPublicStatusBySlug } from './public-status.js';
 export {
   DEMO_EMAIL,
   DEMO_LIVE_NAME,
