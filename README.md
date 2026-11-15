@@ -92,10 +92,12 @@ CI (every pull request and `main`): format check, lint, typecheck, Vitest, produ
 
 ```mermaid
 flowchart LR
-  browser -->|"dashboard /s/[slug]"| web["apps/web Next.js"]
-  web -->|HTTP| api["apps/api Fastify"]
+  browser -->|"dashboard"| web["apps/web Next.js"]
+  browser -->|"/s/[slug] SSR"| web
+  web -->|HTTP dashboard| api["apps/api Fastify"]
+  web -->|server-only Postgres reader| pg["Postgres 16\nsource of truth"]
   anon["anonymous"] -->|"GET /api/public/v1/status/:slug"| api
-  api --> pg["Postgres 16\nsource of truth"]
+  api --> pg
   worker["apps/worker\nscheduler + probe pool"] -->|"SKIP LOCKED"| pg
   worker --> redis["Redis 7\ncache + rate limit"]
   api --> redis
@@ -118,7 +120,7 @@ Sessions live in Postgres. The `beacon_session` cookie is HttpOnly, SameSite=Lax
 ## Hard edges
 
 - **Scheduling:** `FOR UPDATE SKIP LOCKED` claims an enabled due row (or one with a coalesced manual-check signal) that has no active probe lease, then stores an owner token and expiry. Probes run **outside** that transaction. Completion (token-guarded) sets `next_check_at = now + interval + jitter(0–10%)` and releases the lease. `POST /api/v1/targets/:id/check-now` returns **202**: idle targets become due immediately; an in-flight lease is left alone so that probe fulfills the request; paused targets stay paused. A crashed worker is reclaimed when the lease expires.
-- **Redis cache:** keys `target:{id}:latest` (TTL `max(2 × interval, 120s)`), `statuspage:{slug}` (15s), `ratelimit:public:{ip}:{window}`. Invalidated on check commit and target update/delete. Redis down → status HTML and JSON **read** from Postgres; the public **limiter** fails closed (503).
+- **Redis cache:** keys `target:{id}:latest` (TTL `max(2 × interval, 120s)`), `statuspage:{slug}` (15s), `ratelimit:public:{ip}:{window}`. Invalidated on check commit and target update/delete. Redis down → `/s/[slug]` HTML still **reads Postgres** in the Next.js server (the one allowed `apps/web` → `packages/db` path: `is_public` filter, strict public DTO, `DATABASE_URL` never `NEXT_PUBLIC`); JSON cache reads also fall back to Postgres; the public **limiter** fails closed (503). Missing/private slugs on `/s/{slug}` are HTTP **404** before the first HTML flush.
 - **Public rate limit:** `PUBLIC_RATE_LIMIT_PER_MIN` default **60**/IP/minute → 429 `RATE_LIMITED` with `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and `Retry-After`.
 - **SSRF (Appendix C):** create/update and every probe hop resolve DNS, reject private/loopback/link-local/CGNAT/metadata addresses, cap body at 4 KiB, follow ≤ 3 redirects, hard-timeout the request. Create/update check **only the initial URL** (no redirect following, no outbound fetch). Redirects to blocked addresses are enforced by the worker at check time (`SSRF_BLOCKED`). Compose keeps worker `SSRF_PROTECTION=true` with an exact `SSRF_HOST_EXCEPTION=mock-target` (not a subnet allowlist; not inherited by the next hop) so `http://mock-target:8080` works on the Docker network; the API stays protected with `SSRF_ALLOWLIST=mock-target`. Production omits the worker exception. `SSRF_PROTECTION=false` is explicit local debugging only.
 - **Flaky targets:** grace/recovery default **2**, so one blip never opens an incident. The seeded demo uses 1 so the flap is visible in one check.

@@ -1,3 +1,5 @@
+import { loadWebConfig } from '../config';
+
 export function apiBaseUrl(): string {
-  return process.env.API_BASE_URL ?? 'http://localhost:4000';
+  return loadWebConfig().API_BASE_URL;
 }

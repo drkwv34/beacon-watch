@@ -127,10 +127,14 @@ services:
       NODE_ENV: production
       API_BASE_URL: http://api:4000
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
+      # Server-only SSR reader for /s/[slug]. Never NEXT_PUBLIC_DATABASE_URL.
+      DATABASE_URL: postgresql://${POSTGRES_USER:-beacon}:${POSTGRES_PASSWORD:-beacon-local-only}@db:5432/${POSTGRES_DB:-beacon}
     ports:
       - '127.0.0.1:${WEB_PORT:-3000}:3000'
     depends_on:
       api:
+        condition: service_healthy
+      db:
         condition: service_healthy
     healthcheck:
       test:

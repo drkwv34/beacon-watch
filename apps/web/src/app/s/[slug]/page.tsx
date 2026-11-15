@@ -1,48 +1,39 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { connection } from 'next/server';
 import { RelativeTime } from '../../../components/relative-time';
 import { StatePanel } from '../../../components/state-panel';
 import { StatusBadge } from '../../../components/status-badge';
 import { formatDuration, formatUptime } from '../../../lib/format';
-import { apiFetch } from '../../../lib/session';
+import { readPublicStatus } from '../../../lib/public-status';
 import { PUBLIC_STATUS_NOTICE, selectPublicStatusNotice } from '../../../lib/status-labels';
-import type { PublicStatusPage } from '../../../lib/types';
 
 export const dynamic = 'force-dynamic';
 
-export default async function PublicStatusPage({ params }: { params: Promise<{ slug: string }> }) {
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  await connection();
   const { slug } = await params;
-  let res: Response;
-  try {
-    res = await apiFetch(`/api/public/v1/status/${encodeURIComponent(slug)}`);
-  } catch {
+  const result = await readPublicStatus(slug);
+  if (!result.ok && result.reason === 'not_found') notFound();
+  if (result.ok) return { title: `${result.payload.name} · beacon-watch` };
+  return { title: 'beacon-watch' };
+}
+
+export default async function PublicStatusPage({ params }: { params: Promise<{ slug: string }> }) {
+  await connection();
+  const { slug } = await params;
+  const result = await readPublicStatus(slug);
+  if (!result.ok) {
+    if (result.reason === 'not_found') notFound();
     return (
       <StatePanel
         tone="danger"
         title="Status temporarily unavailable"
-        body="The status API could not be reached. Try again in a moment."
+        body="The status page could not be loaded. Try again in a moment."
       />
     );
   }
-  if (res.status === 404) notFound();
-  if (res.status === 429 || res.status === 503) {
-    return (
-      <StatePanel
-        tone="danger"
-        title="Status temporarily unavailable"
-        body="The public status API is rate limited or temporarily down. Try again shortly."
-      />
-    );
-  }
-  if (!res.ok) {
-    return (
-      <StatePanel
-        tone="danger"
-        title="Status temporarily unavailable"
-        body={`Could not load this status page (${res.status}). Request ${res.headers.get('x-request-id') ?? 'unknown'}.`}
-      />
-    );
-  }
-  const data = (await res.json()) as PublicStatusPage;
+  const data = result.payload;
   const notice = selectPublicStatusNotice({
     status: data.status,
     check_count: data.check_count,

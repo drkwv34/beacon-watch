@@ -28,10 +28,13 @@ Postgres is the source of truth. Redis is a cache and a rate-limit store; losing
 ## Dependency direction
 
 ```
-apps/web ──▶ packages/domain            (types only; web talks to the API over HTTP, never to db)
+apps/web ──▶ packages/domain            (types; dashboard talks to the API over HTTP)
+         ──▶ packages/db                (server-only /s/[slug] reader; DATABASE_URL never NEXT_PUBLIC)
 apps/api ──▶ packages/db ──▶ packages/domain
 apps/worker ─▶ packages/db ──▶ packages/domain
 ```
+
+`apps/web` importing `packages/db` is allowed only for the public status HTML reader (`is_public` AND slug, strict public DTO, Postgres). Dashboard routes still use `API_BASE_URL`. The public JSON API stays on `apps/api` and still fail-closes 503 without Redis.
 
 `packages/domain` imports nothing from the repo and nothing that does IO. ESLint enforces this.
 
