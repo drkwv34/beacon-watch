@@ -9,10 +9,10 @@ One folder per capability, each with a `spec.md` describing behavior that is **s
 | Scheduling | `scheduling/` | FR-SCH-001, FR-SCH-003..005, NFR-PERF-002 | SKIP LOCKED claim, explicit probe lease, completion jitter, check persist, probe semaphores |
 | Probe | `probe/` | FR-SCH-002, Appendix C, NFR-SEC-001, FR-ERR-002 | Isolated worker client, timeouts, 4 KiB cap, ≤3 redirects, probe-time SSRF |
 | Incidents | `incidents/` | FR-INC-001..004, Appendix B, NFR-REL-002 | Grace/recovery machine, same-tx persist, owner timeline |
-| Caching | `caching/` | FR-CACHE-001..003, NFR-REL-001 | Redis latest/statuspage keys; Postgres fallback; NFR-PERF-001 p95 is a local bench, not a CI gate |
+| Caching | `caching/` | FR-CACHE-001..003, NFR-REL-001 | Redis latest/statuspage keys; HTML stays up from Postgres when Redis is down; public JSON limiter fail-closed; NFR-PERF-001 p95 is a local bench, not a CI gate |
 | Public API | `public-api/` | FR-PUB-003..005, NFR-SEC-002 | Appendix A JSON, identical 404, per-IP 429, fail-closed limiter, CORS |
-| Dashboard and status HTML | `dashboard-ui/` | FR-UI-001..004, FR-PUB-001..002, NFR-A11Y-001 | Labelled badges, Check now, `/s/[slug]`, empty states |
-| Quality / CI | `quality/` | NFR-MAINT-001, NFR-PORT-001 (e2e) | Vitest pyramid + Compose Playwright including flap |
+| Dashboard and status HTML | `dashboard-ui/` | FR-UI-001..004, FR-PUB-001..002, NFR-A11Y-001 | Labelled badges, Check now, `/s/[slug]` SSR from Postgres with HTTP 404, empty states |
+| Quality / CI | `quality/` | NFR-MAINT-001, NFR-PORT-001 (e2e) | Vitest pyramid + Compose Playwright including flap, 404, and Redis-outage |
 | Portfolio demo | `portfolio/` | NFR-PORT-001, SRS §9 / §4.4, Appendix D | Seed, `scripts/demo-flap.sh`, README, screenshots |
 
 Observability (NFR-OBS-001 check logs, FR-ERR-001 envelope) is specified in `docs/architecture/` rather than a capability folder. NFR-OBS-002 Prometheus `/metrics` is Should.
@@ -31,6 +31,7 @@ Observability (NFR-OBS-001 check logs, FR-ERR-001 envelope) is specified in `doc
 10. ~~`secure-probe-redirects`~~ archived 2026-11-13.
 11. ~~`load-seed-environment`~~ archived 2026-11-13.
 12. ~~`preserve-probe-leases`~~ archived 2026-11-14.
+13. ~~`restore-public-status-delivery`~~ archived 2026-11-15.
 
 Format for a capability `spec.md`:
 

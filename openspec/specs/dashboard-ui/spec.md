@@ -53,7 +53,7 @@ Target detail SHALL offer a Check now control that POSTs to the owner-only check
 - **THEN** the UI calls the check-now API and the target becomes due for the worker
 
 ### Requirement: FR-PUB-001 Public status HTML
-Unauthenticated `GET /s/[slug]` SHALL be server-rendered from the public JSON API and show target name, current state with text, last-24h uptime, recent incidents, and last checked time. Private, slugless, or unknown slugs MUST produce the same Next.js 404 without leaking ids, URLs, or owner identity.
+Unauthenticated `GET /s/[slug]` SHALL be server-rendered from a server-only public payload reader (Postgres, `is_public` filter, strict public DTO) and show target name, current state with text, last-24h uptime, recent incidents, and last checked time. Private, slugless, or unknown slugs MUST produce the same HTTP 404 before any HTML is flushed, with no ids, URLs, or owner identity.
 
 #### Scenario: Public slug renders
 - **WHEN** a public target with checks is requested at `/s/{slug}`
@@ -61,14 +61,22 @@ Unauthenticated `GET /s/[slug]` SHALL be server-rendered from the public JSON AP
 
 #### Scenario: Private and unknown are identical 404
 - **WHEN** the slug is private, unused, or the target has no public_slug
-- **THEN** Next.js renders the same 404 page with no target ids, URLs, or owner data
+- **THEN** the production HTTP status is 404 and the same not-found page is rendered with no target ids, URLs, or owner data
 
 #### Scenario: Rate limited or Redis-down public API
 - **WHEN** the public JSON API returns 429 or 503
+- **THEN** the HTML page does not use that JSON response; Redis-down `/s/{slug}` is served from Postgres and JSON 429 does not apply to the HTML route
+
+#### Scenario: Redis down still serves HTML
+- **WHEN** Redis is stopped or unreachable and a public slug has state in Postgres
+- **THEN** `GET /s/{slug}` returns 200 with that labelled status and incidents and MUST NOT show "Status temporarily unavailable"
+
+#### Scenario: Reader failure does not crash
+- **WHEN** the public payload cannot be loaded because Postgres is unreachable
 - **THEN** the page shows "Status temporarily unavailable" and does not crash
 
 ### Requirement: FR-PUB-002 Status empty states
-The public page MUST select copy from the public JSON: no checks → "Monitoring starting…"; paused → "Monitoring is paused"; checks exist but none succeeded → "No successful checks yet."
+The public page MUST select copy from the public payload: no checks → "Monitoring starting…"; paused → "Monitoring is paused"; checks exist but none succeeded → "No successful checks yet."
 
 #### Scenario: No checks
 - **WHEN** check_count is 0 and status is not paused
