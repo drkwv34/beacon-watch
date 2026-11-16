@@ -1,0 +1,176 @@
+openapi: 3.1.0
+info:
+  title: beacon-watch API
+  version: 0.1.0
+  description: >
+    Authenticated JSON under /api/v1. Cookie sessions (beacon_session) plus
+    CSRF on mutations, or Authorization Bearer for owner target, check, and
+    incident routes. Token create, list, and revoke require a session.
+servers:
+  - url: http://127.0.0.1:4000
+security:
+  - sessionCookie: []
+  - bearerToken: []
+paths:
+  /api/v1/tokens:
+    get:
+      summary: List the current user's API tokens
+      description: Session only. Omits the raw secret and hash.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Token metadata
+        '401':
+          description: Missing session
+        '403':
+          description: Bearer is not allowed to list tokens
+    post:
+      summary: Create an API token
+      description: Session plus CSRF. The full secret is returned only in this response.
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [label]
+              properties:
+                label:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                expires_at:
+                  type: string
+                  format: date-time
+      responses:
+        '201':
+          description: Created; includes token once
+        '400':
+          description: Validation failed
+        '401':
+          description: Missing session
+        '403':
+          description: CSRF failure or Bearer caller
+  /api/v1/tokens/{id}:
+    delete:
+      summary: Revoke an API token
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Revoked
+        '404':
+          description: Unknown or already revoked
+        '403':
+          description: CSRF failure or Bearer caller
+  /api/v1/auth/me:
+    get:
+      summary: Current user
+      responses:
+        '200':
+          description: Public profile
+  /api/v1/auth/logout:
+    post:
+      summary: Revoke the session
+      description: Session plus CSRF. Bearer is 403.
+      security:
+        - sessionCookie: []
+      responses:
+        '204':
+          description: Logged out
+        '403':
+          description: CSRF failure or Bearer caller
+  /api/v1/targets:
+    get:
+      summary: List owned targets
+      responses:
+        '200':
+          description: Owner-scoped list
+    post:
+      summary: Create a target
+      responses:
+        '201':
+          description: Created
+  /api/v1/targets/{id}:
+    get:
+      summary: Get a target
+      parameters:
+        - $ref: '#/components/parameters/TargetId'
+      responses:
+        '200':
+          description: Owned target
+        '403':
+          description: Authenticated non-owner
+        '404':
+          description: Unknown id
+    patch:
+      summary: Update a target
+      parameters:
+        - $ref: '#/components/parameters/TargetId'
+      responses:
+        '200':
+          description: Updated
+    delete:
+      summary: Hard-delete a target
+      parameters:
+        - $ref: '#/components/parameters/TargetId'
+      responses:
+        '204':
+          description: Deleted
+  /api/v1/targets/{id}/check-now:
+    post:
+      summary: Queue an immediate check
+      parameters:
+        - $ref: '#/components/parameters/TargetId'
+      responses:
+        '202':
+          description: Accepted
+  /api/v1/targets/{id}/checks:
+    get:
+      summary: List recent checks
+      parameters:
+        - $ref: '#/components/parameters/TargetId'
+      responses:
+        '200':
+          description: Newest first
+  /api/v1/targets/{id}/incidents:
+    get:
+      summary: Incident timeline
+      parameters:
+        - $ref: '#/components/parameters/TargetId'
+      responses:
+        '200':
+          description: Newest first
+        '403':
+          description: Authenticated non-owner
+        '404':
+          description: Unknown id
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: beacon_session
+      description: HttpOnly session cookie. Mutating requests also need x-csrf-token matching beacon_csrf.
+    bearerToken:
+      type: http
+      scheme: bearer
+      description: Opaque API token. Cannot manage tokens, login, or logout.
+  parameters:
+    TargetId:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: string
+        format: uuid

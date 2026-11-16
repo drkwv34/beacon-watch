@@ -5,7 +5,7 @@ Goal: calm, legible, operational. It should read like a status console, not a ma
 
 ## Structure
 
-- Next.js **App Router**. Routes: `/` (landing), `/login`, `/register`, `/dashboard`, `/dashboard/targets/[id]`, `/dashboard/targets/new`, `/s/[slug]` (public).
+- Next.js **App Router**. Routes: `/` (landing), `/login`, `/register`, `/dashboard`, `/dashboard/tokens`, `/dashboard/targets/[id]`, `/dashboard/targets/new`, `/s/[slug]` (public).
 - **Server components by default**; `'use client'` only for interactive leaves (forms, "Check now").
 - Dashboard data comes from the API over HTTP (`API_BASE_URL`, server-side). `/s/[slug]` is the documented exception: a `server-only` module reads the public payload from Postgres via `packages/db` (`public_slug AND is_public`, strict public DTO). `DATABASE_URL` is web-server config only; never `NEXT_PUBLIC_DATABASE_URL`. Private, slugless, and unknown slugs resolve before the first HTML flush and return HTTP 404.
 - Shared UI in `src/components/`; route-specific pieces stay in the route folder.

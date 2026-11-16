@@ -1,8 +1,6 @@
 import {
   DomainError,
   MAX_TARGETS_PER_USER,
-  asTargetId,
-  isUuid,
   validateTargetInput,
   type TargetInput,
   type TargetPatch,
@@ -12,7 +10,6 @@ import {
   countTargetsForUser,
   deleteTarget,
   findLatestCheck,
-  findTargetById,
   insertTarget,
   latestLatencyByTargetIds,
   listTargetsForUser,
@@ -26,20 +23,7 @@ import {
 import type { RedisCache } from '../../cache/redis-cache.js';
 import type { ApiConfig } from '../../config.js';
 import { assertUrlAllowed, type LookupFn } from '../../lookup.js';
-
-function requireTargetId(id: string) {
-  if (!isUuid(id))
-    throw new DomainError('VALIDATION_FAILED', 'Invalid target id', { fields: { id: 'must be a uuid' } });
-  return asTargetId(id);
-}
-
-async function loadOwned(pool: DbPool, userId: UserId, rawId: string): Promise<TargetRow> {
-  const id = requireTargetId(rawId);
-  const row = await findTargetById(pool, id);
-  if (!row) throw new DomainError('NOT_FOUND', 'Target not found');
-  if (row.userId !== userId) throw new DomainError('FORBIDDEN', 'Not the target owner');
-  return row;
-}
+import { loadOwnedTarget } from './ownership.js';
 
 export class TargetService {
   constructor(
@@ -91,11 +75,11 @@ export class TargetService {
   }
 
   async get(userId: UserId, id: string): Promise<Record<string, unknown>> {
-    return this.toJson(await loadOwned(this.pool, userId, id));
+    return this.toJson(await loadOwnedTarget(this.pool, userId, id));
   }
 
   async checkNow(userId: UserId, id: string): Promise<Record<string, unknown>> {
-    const existing = await loadOwned(this.pool, userId, id);
+    const existing = await loadOwnedTarget(this.pool, userId, id);
     const now = this.now();
     const row = await withTransaction(this.pool, async (tx) => {
       const updated = await requestManualCheck(tx, existing.id, now);
@@ -106,7 +90,7 @@ export class TargetService {
   }
 
   async update(userId: UserId, id: string, patch: TargetPatch): Promise<TargetRow> {
-    const existing = await loadOwned(this.pool, userId, id);
+    const existing = await loadOwnedTarget(this.pool, userId, id);
     const merged: TargetInput = {
       name: patch.name ?? existing.name,
       url: patch.url ?? existing.url,
@@ -148,7 +132,7 @@ export class TargetService {
   }
 
   async remove(userId: UserId, id: string): Promise<void> {
-    const existing = await loadOwned(this.pool, userId, id);
+    const existing = await loadOwnedTarget(this.pool, userId, id);
     await deleteTarget(this.pool, existing.id);
     await this.cache?.invalidateTarget(existing.id, [existing.publicSlug]);
   }

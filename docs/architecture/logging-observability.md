@@ -12,7 +12,7 @@
 ## Redaction
 
 - Configured centrally (`REDACT_PATHS` in `apps/api/src/app.ts`): `authorization`, `cookie`, `set-cookie`.
-- Never log: passwords, session ids, `SESSION_SECRET`, `DATABASE_URL`, target request headers/bodies, response bodies from probed targets.
+- Never log: passwords, session ids, API token secrets, `SESSION_SECRET`, `DATABASE_URL`, target request headers/bodies, response bodies from probed targets.
 - Log target URLs **without** query strings or userinfo (`https://host/path`), since users sometimes embed tokens in them.
 - Config validation errors list invalid **keys**, never values.
 

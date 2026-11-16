@@ -40,6 +40,15 @@ export interface PublicIncident {
   duration_seconds: number;
 }
 
+export interface PublicApiToken {
+  id: string;
+  label: string;
+  prefix: string;
+  created_at: string;
+  expires_at: string | null;
+  last_used_at: string | null;
+}
+
 export interface PublicStatusPage {
   name: string;
   status: DisplayStatus;

@@ -12,6 +12,7 @@ next-env.d.ts
 
 .DS_Store
 *.log
+dump.rdb
 .idea/
 .vscode/*
 !.vscode/extensions.json

@@ -52,6 +52,9 @@ export async function registerProtectedAuthRoutes(
   config: ApiConfig,
 ): Promise<void> {
   app.post('/auth/logout', async (request, reply) => {
+    if (request.authMethod === 'bearer') {
+      throw new DomainError('FORBIDDEN', 'Session required');
+    }
     const token = request.cookies[SESSION_COOKIE];
     if (token) await auth.logout(token);
     clearSessionCookies(reply, config);

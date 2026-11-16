@@ -9,6 +9,7 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
         </a>
         <nav className="nav" aria-label="Main">
           <a href="/dashboard">Dashboard</a>
+          <a href="/dashboard/tokens">API tokens</a>
           <a href="/login">Sign in</a>
         </nav>
       </header>

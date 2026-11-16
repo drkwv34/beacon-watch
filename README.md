@@ -106,7 +106,7 @@ flowchart LR
 
 | Path | Role |
 | --- | --- |
-| `apps/api` | Fastify: auth, targets, public status JSON, rate limits |
+| `apps/api` | Fastify: auth, API tokens, targets, public status JSON, rate limits |
 | `apps/worker` | Scheduler and probe pool; the **only** code allowed to call monitored URLs |
 | `apps/web` | Next.js dashboard and public `/s/[slug]` status pages |
 | `packages/domain` | Pure TypeScript: types, error codes, incident state machine |
@@ -115,7 +115,21 @@ flowchart LR
 | `openspec/` | Change proposals; every product change starts here |
 | `docs/architecture/` | Normative conventions and ADRs |
 
-Sessions live in Postgres. The `beacon_session` cookie is HttpOnly, SameSite=Lax, and Secure in production. Mutating `/api/v1` requests after login need `x-csrf-token` (double-submit cookie `beacon_csrf`).
+Sessions live in Postgres. The `beacon_session` cookie is HttpOnly, SameSite=Lax, and Secure in production. Mutating `/api/v1` requests after login need `x-csrf-token` (double-submit cookie `beacon_csrf`). Owners can mint opaque API tokens (stored only as a hash) at `/dashboard/tokens` or `POST /api/v1/tokens`. Send `Authorization: Bearer $TOKEN` for target, check, and incident APIs; token create/list/revoke stays session+CSRF. Invalid, expired, or revoked tokens are 401. The secret is returned once.
+
+```bash
+# After signing in, copy beacon_session and beacon_csrf from the browser (do not log them).
+curl -sS http://127.0.0.1:4000/api/v1/tokens \
+  -H "content-type: application/json" \
+  -H "cookie: beacon_session=$SESSION; beacon_csrf=$CSRF" \
+  -H "x-csrf-token: $CSRF" \
+  -d '{"label":"cli"}'
+# Response includes "token" once. Use it as:
+curl -sS http://127.0.0.1:4000/api/v1/targets \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+OpenAPI: [`docs/openapi.yaml`](docs/openapi.yaml).
 
 ## Hard edges
 
