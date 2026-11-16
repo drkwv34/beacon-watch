@@ -28,4 +28,11 @@ describe('auth gate', () => {
     expect(res.statusCode).toBe(401);
     expect(res.json()).toMatchObject({ error: { code: 'UNAUTHENTICATED' } });
   });
+
+  it('returns 401 for GET /api/v1/tokens without a session', async () => {
+    const app = await setup;
+    const res = await app.inject({ method: 'GET', url: '/api/v1/tokens' });
+    expect(res.statusCode).toBe(401);
+    expect(res.json()).toMatchObject({ error: { code: 'UNAUTHENTICATED' } });
+  });
 });

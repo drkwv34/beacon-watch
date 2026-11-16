@@ -18,6 +18,15 @@ export {
   type SessionRow,
 } from './repositories/sessions.js';
 export {
+  insertApiToken,
+  findApiTokenByHash,
+  listApiTokensForUser,
+  revokeApiTokenForUser,
+  touchApiTokenLastUsed,
+  toPublicApiToken,
+  type ApiTokenRow,
+} from './repositories/api-tokens.js';
+export {
   insertTarget,
   findTargetById,
   findPublicTargetBySlug,

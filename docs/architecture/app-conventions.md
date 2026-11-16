@@ -10,7 +10,8 @@
 ## Security baseline
 
 - No secrets in git, ever. `.env*` is gitignored except `.env.example`, which only holds local placeholders.
-- Sessions: HttpOnly, `Secure` outside local dev, `SameSite=Lax`, CSRF token on mutating routes (Day 2).
+- Sessions: HttpOnly, `Secure` outside local dev, `SameSite=Lax`, CSRF token on mutating cookie-authenticated routes.
+- API tokens: opaque secrets hashed with a domain-separated HMAC; management is session+CSRF; `Authorization: Bearer` authenticates owner target/check/incident routes only. CSRF is skipped only after a valid Bearer lookup, not because the header is present.
 - Authorization in the service layer: every target query is scoped by `user_id`; public routes select by `public_slug AND is_public`.
 - Public endpoints never expose internal ids of private targets (NFR-SEC-001).
 - Compose publishes ports on `127.0.0.1` only.

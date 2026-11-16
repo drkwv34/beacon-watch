@@ -12,7 +12,7 @@
 
 ## 3. Integration check
 
-- [ ] 3.1 Run `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build` and `openspec validate align-incident-authorization --strict`; verify all exit 0.
+- [x] 3.1 Run `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build` and `openspec validate align-incident-authorization --strict`; verify all exit 0.
 
 ## Workflow follow-up
 

@@ -3,11 +3,13 @@ import { hash as argonHash, verify as argonVerify } from '@node-rs/argon2';
 import { DomainError, type UserId } from '@beacon-watch/domain';
 import {
   deleteSessionByTokenHash,
+  findApiTokenByHash,
   findSessionByTokenHash,
   findUserByEmail,
   findUserById,
   insertSession,
   insertUser,
+  touchApiTokenLastUsed,
   touchSessionExpiry,
   withTransaction,
   type DbPool,
@@ -40,8 +42,21 @@ export interface SessionContext {
   expiresAt: Date;
 }
 
+export const API_TOKEN_HMAC_CONTEXT = 'beacon-watch:api-token:';
+
 export function hashSessionToken(secret: string, token: string): string {
   return createHmac('sha256', secret).update(token).digest('hex');
+}
+
+export function hashApiToken(secret: string, token: string): string {
+  return createHmac('sha256', secret).update(API_TOKEN_HMAC_CONTEXT).update(token).digest('hex');
+}
+
+export function readBearerToken(header: string | string[] | undefined): string | undefined {
+  const raw = Array.isArray(header) ? header[0] : header;
+  if (!raw) return undefined;
+  const match = /^Bearer\s+(\S+)$/i.exec(raw.trim());
+  return match?.[1];
 }
 
 function publicUser(user: UserRow): AuthUser {
@@ -129,6 +144,19 @@ export class AuthService {
       return undefined;
     }
     return { user: publicUser(user), tokenHash, sessionId: session.id, expiresAt: session.expiresAt };
+  }
+
+  async resolveApiToken(token: string | undefined): Promise<AuthUser | undefined> {
+    if (!token) return undefined;
+    const tokenHash = hashApiToken(this.config.SESSION_SECRET, token);
+    const row = await findApiTokenByHash(this.pool, tokenHash);
+    if (!row || row.revokedAt) return undefined;
+    const now = this.now();
+    if (row.expiresAt && row.expiresAt.getTime() <= now.getTime()) return undefined;
+    const user = await findUserById(this.pool, row.userId);
+    if (!user) return undefined;
+    await touchApiTokenLastUsed(this.pool, row.id, now);
+    return publicUser(user);
   }
 
   private async issueSession(

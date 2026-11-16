@@ -1,14 +1,14 @@
 # Should-scope backlog (proposal-only)
 
-This note records **Should**-priority SRS items that are **not** in the v0.1.0 pin. It is an OpenSpec backlog, not a change to implement.
+This note records **Should**-priority SRS items. It is an OpenSpec backlog, not a change to implement, except where a later approved change has shipped a row.
 
-**Do not implement any item here** without a new OpenSpec change (`openspec new change …`) that is reviewed and applied separately. Day 9 `add-pin-ready-closeout` records this list only.
+**Do not implement any remaining item here** without a new OpenSpec change (`openspec new change …`) that is reviewed and applied separately. Day 9 `add-pin-ready-closeout` recorded this list; `add-api-tokens` implements FR-AUTH-003.
 
 Sources: archived change proposals under `openspec/changes/archive/` and capability status in `openspec/specs/README.md`.
 
 | ID / name | Summary | Recorded in |
 | --- | --- | --- |
-| FR-AUTH-003 | API tokens. Auth is email/password + Postgres sessions only. | `openspec/changes/archive/2026-10-14-add-auth-targets/proposal.md`; `openspec/specs/auth/spec.md` |
+| FR-AUTH-003 | Shipped in `add-api-tokens` (opaque hashed tokens, session+CSRF management, Bearer owner APIs). | `openspec/changes/add-api-tokens/` |
 | NFR-OBS-002 | Prometheus `/metrics` (`checks_total`, `check_latency_ms`, `open_incidents`, `public_api_rate_limited_total`). NFR-OBS-001 check logs are Must and shipped. | `docs/architecture/logging-observability.md` |
 | Latency sparkline | Dashboard sparkline of recent latencies. Day 6 skipped it. | `openspec/changes/archive/2026-10-18-add-ui-status-dashboard/proposal.md` |
 | Alerts | Slack, email, or PagerDuty notifications. Out of MVP (SRS §10). | `README.md` Trade-offs; `docs/architecture/external-integrations.md` |

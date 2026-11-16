@@ -9,4 +9,4 @@
 - **Indexes mandated by the SRS:** `checks (target_id, checked_at DESC)`; partial unique `incidents (target_id) WHERE status = 'open'`;
   `targets (next_check_at) WHERE enabled` for the due query; unique `targets (public_slug) WHERE public_slug IS NOT NULL`.
 - **Retention:** raw checks 14 days, incidents 180 days, enforced by a periodic cleanup in the worker (batched deletes, never one giant `DELETE`).
-- **Secrets:** `password_hash` only (argon2id or bcrypt ≥ 12). Target `headers` may contain tokens a user supplied; never log them.
+- **Secrets:** `password_hash` only (argon2id or bcrypt ≥ 12). API tokens persist `token_hash` (HMAC) plus a public prefix; the raw secret is never stored. Target `headers` may contain tokens a user supplied; never log them.

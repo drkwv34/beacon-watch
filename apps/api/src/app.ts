@@ -8,8 +8,10 @@ import { RedisRateLimiter, type RateLimiter } from './cache/rate-limiter.js';
 import type { ApiConfig } from './config.js';
 import { SESSION_COOKIE } from './cookies.js';
 import { systemLookup, type LookupFn } from './lookup.js';
-import { AuthService } from './modules/auth/service.js';
+import { AuthService, readBearerToken } from './modules/auth/service.js';
 import { assertCsrf, registerProtectedAuthRoutes, registerPublicAuthRoutes } from './modules/auth/routes.js';
+import { TokenService } from './modules/tokens/service.js';
+import { registerTokenRoutes } from './modules/tokens/routes.js';
 import { PublicStatusService } from './modules/public-status/service.js';
 import { registerPublicStatusRoutes } from './modules/public-status/routes.js';
 import { TargetService } from './modules/targets/service.js';
@@ -109,6 +111,7 @@ export async function buildApp(
       deps.rateLimiter ??
       (deps.redis ? new RedisRateLimiter(deps.redis, fullConfig.PUBLIC_RATE_LIMIT_PER_MIN) : undefined);
     const auth = new AuthService(deps.pool, fullConfig, now, deps.randomBytes);
+    const tokens = new TokenService(deps.pool, fullConfig, now, deps.randomBytes);
     const targets = new TargetService(deps.pool, fullConfig, lookup, now, cache);
     const checks = new CheckService(deps.pool);
     const incidents = new IncidentService(deps.pool, now);
@@ -134,17 +137,26 @@ export async function buildApp(
 
         await v1.register(async (protectedApi) => {
           protectedApi.addHook('preHandler', async (request) => {
-            const token = request.cookies[SESSION_COOKIE];
-            const session = await auth.resolveSession(token);
-            if (!session) {
-              throw new DomainError('UNAUTHENTICATED', 'Authentication required');
+            const session = await auth.resolveSession(request.cookies[SESSION_COOKIE]);
+            if (session) {
+              request.authUser = session.user;
+              request.authMethod = 'session';
+              return;
             }
-            request.authUser = session.user;
+            const bearer = await auth.resolveApiToken(readBearerToken(request.headers.authorization));
+            if (bearer) {
+              request.authUser = bearer;
+              request.authMethod = 'bearer';
+              return;
+            }
+            throw new DomainError('UNAUTHENTICATED', 'Authentication required');
           });
           protectedApi.addHook('preHandler', async (request) => {
+            if (request.authMethod === 'bearer') return;
             assertCsrf(request);
           });
           await registerProtectedAuthRoutes(protectedApi, auth, fullConfig);
+          await registerTokenRoutes(protectedApi, tokens);
           await registerTargetRoutes(protectedApi, targets);
           await registerCheckRoutes(protectedApi, checks);
           await registerIncidentRoutes(protectedApi, incidents);

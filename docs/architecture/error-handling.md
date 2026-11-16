@@ -11,7 +11,7 @@
 | Code | HTTP | Typical cause |
 | --- | --- | --- |
 | `VALIDATION_FAILED` | 400 | Zod/domain rule failure; `details.fields` lists offending fields |
-| `UNAUTHENTICATED` | 401 | Missing/expired session |
+| `UNAUTHENTICATED` | 401 | Missing/expired session, or an invalid, expired, or revoked API token |
 | `FORBIDDEN` | 403 | Authenticated but not the owner (FR-ERR-003); CSRF failure on a cookie-authenticated mutation |
 | `NOT_FOUND` | 404 | Unknown id on authenticated routes, **or a private target accessed publicly** (never 403 on public routes, to avoid leaking existence) |
 
