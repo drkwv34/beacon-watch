@@ -118,7 +118,7 @@ describe.skipIf(skip)('incident timeline', () => {
     });
   });
 
-  it('returns 404 for a non-owner and for an unknown id', async () => {
+  it('returns 403 for a non-owner and 404 for an unknown id', async () => {
     const owner = await register(app, 'a@example.com');
     const other = await register(app, 'b@example.com');
     const created = await app.inject({
@@ -133,13 +133,44 @@ describe.skipIf(skip)('incident timeline', () => {
       url: `/api/v1/targets/${id}/incidents`,
       headers: { cookie: other.header },
     });
-    expect(forbidden.statusCode).toBe(404);
-    expect(forbidden.json()).toMatchObject({ error: { code: 'NOT_FOUND' } });
+    expect(forbidden.statusCode).toBe(403);
+    expect(forbidden.json()).toMatchObject({ error: { code: 'FORBIDDEN' } });
+    expect(forbidden.json().error.request_id).toEqual(expect.any(String));
+    expect(forbidden.json()).not.toHaveProperty('items');
     const missing = await app.inject({
       method: 'GET',
       url: `/api/v1/targets/${randomUUID()}/incidents`,
       headers: { cookie: owner.header },
     });
     expect(missing.statusCode).toBe(404);
+    expect(missing.json()).toMatchObject({ error: { code: 'NOT_FOUND' } });
+  });
+
+  it('returns 200 for the owner, 401 without a session, and 400 for a non-uuid id', async () => {
+    const owner = await register(app, 'owner-authz@example.com');
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/v1/targets',
+      headers: { cookie: owner.header, 'x-csrf-token': owner.csrf },
+      payload: { name: 'Owned', url: 'https://example.com' },
+    });
+    const id = created.json().id as string;
+    const ok = await app.inject({
+      method: 'GET',
+      url: `/api/v1/targets/${id}/incidents`,
+      headers: { cookie: owner.header },
+    });
+    expect(ok.statusCode).toBe(200);
+    expect(ok.json()).toEqual({ items: [] });
+    const unauth = await app.inject({ method: 'GET', url: `/api/v1/targets/${id}/incidents` });
+    expect(unauth.statusCode).toBe(401);
+    expect(unauth.json()).toMatchObject({ error: { code: 'UNAUTHENTICATED' } });
+    const invalid = await app.inject({
+      method: 'GET',
+      url: '/api/v1/targets/not-a-uuid/incidents',
+      headers: { cookie: owner.header },
+    });
+    expect(invalid.statusCode).toBe(400);
+    expect(invalid.json()).toMatchObject({ error: { code: 'VALIDATION_FAILED' } });
   });
 });

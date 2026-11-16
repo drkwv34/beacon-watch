@@ -1,12 +1,6 @@
-import { DomainError, asTargetId, isUuid, type UserId } from '@beacon-watch/domain';
-import { findTargetById, listIncidentsForTarget, toPublicIncident, type DbPool } from '@beacon-watch/db';
-
-function requireTargetId(id: string) {
-  if (!isUuid(id)) {
-    throw new DomainError('VALIDATION_FAILED', 'Invalid target id', { fields: { id: 'must be a uuid' } });
-  }
-  return asTargetId(id);
-}
+import type { UserId } from '@beacon-watch/domain';
+import { listIncidentsForTarget, toPublicIncident, type DbPool } from '@beacon-watch/db';
+import { loadOwnedTarget } from '../targets/ownership.js';
 
 export class IncidentService {
   constructor(
@@ -15,12 +9,8 @@ export class IncidentService {
   ) {}
 
   async listForTarget(userId: UserId, rawId: string): Promise<Record<string, unknown>[]> {
-    const id = requireTargetId(rawId);
-    const target = await findTargetById(this.pool, id);
-    if (!target || target.userId !== userId) {
-      throw new DomainError('NOT_FOUND', 'Target not found');
-    }
-    const rows = await listIncidentsForTarget(this.pool, id);
+    const target = await loadOwnedTarget(this.pool, userId, rawId);
+    const rows = await listIncidentsForTarget(this.pool, target.id);
     const now = this.now();
     return rows.map((row) => toPublicIncident(row, now));
   }
