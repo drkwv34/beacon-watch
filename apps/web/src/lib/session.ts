@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { apiBaseUrl } from './env';
 
+/** Forwards the request cookie jar to the API. Session validity is GET /api/v1/auth/me, never a local decode. */
 export async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
   const jar = await cookies();
   const headers = new Headers(init.headers);

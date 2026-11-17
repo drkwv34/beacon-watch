@@ -454,6 +454,7 @@ describe.skipIf(skip)('public status API', () => {
       remoteAddress: nextIp(),
     });
     expect(denied.headers['access-control-allow-origin']).toBeUndefined();
+    expect(String(denied.headers.vary ?? '')).toMatch(/Origin/i);
 
     const allowApp = await buildTestApp({
       pool,
@@ -469,7 +470,167 @@ describe.skipIf(skip)('public status API', () => {
       remoteAddress: nextIp(),
     });
     expect(allowed.headers['access-control-allow-origin']).toBe('https://status.example');
+    expect(String(allowed.headers.vary ?? '')).toMatch(/Origin/i);
+
+    const disallowedGet = await allowApp.inject({
+      method: 'GET',
+      url: '/api/public/v1/status/cors-demo',
+      headers: { origin: 'https://evil.example' },
+      remoteAddress: nextIp(),
+    });
+    expect(disallowedGet.statusCode).toBe(200);
+    expect(disallowedGet.headers['access-control-allow-origin']).toBeUndefined();
+
+    const allowedOptions = await allowApp.inject({
+      method: 'OPTIONS',
+      url: '/api/public/v1/status/cors-demo',
+      headers: { origin: 'https://status.example', 'access-control-request-method': 'GET' },
+      remoteAddress: nextIp(),
+    });
+    expect(allowedOptions.statusCode).toBe(204);
+    expect(allowedOptions.body).toBe('');
+    expect(allowedOptions.headers['access-control-allow-origin']).toBe('https://status.example');
+    expect(String(allowedOptions.headers.vary ?? '')).toMatch(/Origin/i);
+
+    const deniedOptions = await allowApp.inject({
+      method: 'OPTIONS',
+      url: '/api/public/v1/status/cors-demo',
+      headers: { origin: 'https://evil.example', 'access-control-request-method': 'GET' },
+      remoteAddress: nextIp(),
+    });
+    expect(deniedOptions.statusCode).toBe(204);
+    expect(deniedOptions.body).toBe('');
+    expect(deniedOptions.headers['access-control-allow-origin']).toBeUndefined();
     await allowApp.close();
+
+    const emptyOptions = await app.inject({
+      method: 'OPTIONS',
+      url: '/api/public/v1/status/cors-demo',
+      headers: { origin: 'https://status.example', 'access-control-request-method': 'GET' },
+      remoteAddress: nextIp(),
+    });
+    expect(emptyOptions.statusCode).toBe(204);
+    expect(emptyOptions.body).toBe('');
+    expect(emptyOptions.headers['access-control-allow-origin']).toBeUndefined();
+    expect(String(emptyOptions.headers.vary ?? '')).toMatch(/Origin/i);
+  });
+
+  it('does not consume GET quota on OPTIONS preflight', async () => {
+    await seedUpTarget('options-quota');
+    const quotaApp = await buildTestApp({
+      pool,
+      redis,
+      now: () => NOW,
+      config: testConfig({ PUBLIC_RATE_LIMIT_PER_MIN: '1', PUBLIC_CORS_ORIGINS: 'https://status.example' }),
+      lookup: async () => ['93.184.216.34'],
+    });
+    const ip = nextIp();
+    const first = await quotaApp.inject({
+      method: 'GET',
+      url: '/api/public/v1/status/options-quota',
+      remoteAddress: ip,
+    });
+    expect(first.statusCode).toBe(200);
+    const preflight = await quotaApp.inject({
+      method: 'OPTIONS',
+      url: '/api/public/v1/status/options-quota',
+      headers: { origin: 'https://status.example', 'access-control-request-method': 'GET' },
+      remoteAddress: ip,
+    });
+    expect(preflight.statusCode).toBe(204);
+    const limited = await quotaApp.inject({
+      method: 'GET',
+      url: '/api/public/v1/status/options-quota',
+      remoteAddress: ip,
+    });
+    expect(limited.statusCode).toBe(429);
+    await quotaApp.close();
+  });
+
+  it('holds 429 across a Unix minute until Retry-After elapses', async () => {
+    await seedUpTarget('window-demo');
+    let clock = new Date('2026-11-16T17:25:58.000Z');
+    const windowApp = await buildTestApp({
+      pool,
+      redis,
+      now: () => clock,
+      config: testConfig({ PUBLIC_RATE_LIMIT_PER_MIN: '2' }),
+      lookup: async () => ['93.184.216.34'],
+    });
+    const ip = nextIp();
+    expect(
+      (
+        await windowApp.inject({
+          method: 'GET',
+          url: '/api/public/v1/status/window-demo',
+          remoteAddress: ip,
+        })
+      ).statusCode,
+    ).toBe(200);
+    expect(
+      (
+        await windowApp.inject({
+          method: 'GET',
+          url: '/api/public/v1/status/window-demo',
+          remoteAddress: ip,
+        })
+      ).statusCode,
+    ).toBe(200);
+    const limited = await windowApp.inject({
+      method: 'GET',
+      url: '/api/public/v1/status/window-demo',
+      remoteAddress: ip,
+    });
+    expect(limited.statusCode).toBe(429);
+    expect(Number(limited.headers['retry-after'])).toBe(60);
+    clock = new Date('2026-11-16T17:26:00.000Z');
+    const stillLimited = await windowApp.inject({
+      method: 'GET',
+      url: '/api/public/v1/status/window-demo',
+      remoteAddress: ip,
+    });
+    expect(stillLimited.statusCode).toBe(429);
+    expect(Number(stillLimited.headers['retry-after'])).toBe(58);
+    clock = new Date('2026-11-16T17:26:58.000Z');
+    const admitted = await windowApp.inject({
+      method: 'GET',
+      url: '/api/public/v1/status/window-demo',
+      remoteAddress: ip,
+    });
+    expect(admitted.statusCode).toBe(200);
+    await windowApp.close();
+  });
+
+  it('answers OPTIONS 204 when Redis is down while GET fails closed', async () => {
+    await seedUpTarget('options-down');
+    const dead = createRedis({
+      url: 'redis://127.0.0.1:9',
+      connectTimeoutMs: 200,
+      commandTimeoutMs: 200,
+    });
+    const downApp = await buildTestApp({
+      pool,
+      redis: dead,
+      now: () => NOW,
+      lookup: async () => ['93.184.216.34'],
+    });
+    const options = await downApp.inject({
+      method: 'OPTIONS',
+      url: '/api/public/v1/status/options-down',
+      headers: { origin: 'https://status.example', 'access-control-request-method': 'GET' },
+      remoteAddress: nextIp(),
+    });
+    expect(options.statusCode).toBe(204);
+    expect(options.headers['access-control-allow-origin']).toBeUndefined();
+    const get = await downApp.inject({
+      method: 'GET',
+      url: '/api/public/v1/status/options-down',
+      remoteAddress: nextIp(),
+    });
+    expect(get.statusCode).toBe(503);
+    expect(get.json().error.code).toBe('DEPENDENCY_UNAVAILABLE');
+    await downApp.close();
+    dead.disconnect();
   });
 
   it('marks Redis unavailable on /readyz without failing Postgres', async () => {
