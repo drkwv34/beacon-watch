@@ -3,14 +3,12 @@ import {
   rateLimitAllowed,
   rateLimitRemaining,
   rateLimitRetryAfterSeconds,
-  rateLimitWindowStartSeconds,
+  rateLimitWindowCutoffMs,
 } from './rate-limit.js';
 
-describe('rate-limit window math', () => {
-  it('aligns now to the start of a 60s window', () => {
-    const now = new Date('2026-10-16T12:00:30.500Z');
-    expect(rateLimitWindowStartSeconds(now)).toBe(Math.floor(Date.parse('2026-10-16T12:00:00.000Z') / 1000));
-    expect(rateLimitWindowStartSeconds(now, 60)).toBe(1_792_152_000);
+describe('rate-limit sliding window math', () => {
+  it('cuts off admissions older than the window', () => {
+    expect(rateLimitWindowCutoffMs(1_700_000_060_000, 60_000)).toBe(1_700_000_000_000);
   });
 
   it('counts remaining and 429 after the limit is exceeded', () => {
@@ -21,9 +19,12 @@ describe('rate-limit window math', () => {
     expect(rateLimitAllowed(61, 60)).toBe(false);
   });
 
-  it('uses Redis TTL for Retry-After and falls back to the window length', () => {
-    expect(rateLimitRetryAfterSeconds(42)).toBe(42);
-    expect(rateLimitRetryAfterSeconds(0)).toBe(60);
-    expect(rateLimitRetryAfterSeconds(-1)).toBe(60);
+  it('ceils Retry-After to whole seconds with a minimum of 1', () => {
+    const windowMs = 60_000;
+    const oldest = 1_700_000_000_000;
+    expect(rateLimitRetryAfterSeconds(oldest, oldest + 43_000, windowMs)).toBe(17);
+    expect(rateLimitRetryAfterSeconds(oldest, oldest + 42_400, windowMs)).toBe(18);
+    expect(rateLimitRetryAfterSeconds(oldest, oldest + windowMs - 400, windowMs)).toBe(1);
+    expect(rateLimitRetryAfterSeconds(oldest, oldest + windowMs, windowMs)).toBe(1);
   });
 });

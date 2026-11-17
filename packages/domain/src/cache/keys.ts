@@ -12,8 +12,8 @@ export function statusPageKey(slug: string): string {
   return `statuspage:${slug}`;
 }
 
-export function publicRateLimitKey(ip: string, windowStartSeconds: number): string {
-  return `ratelimit:public:${ip}:${windowStartSeconds}`;
+export function publicRateLimitKey(ip: string): string {
+  return `ratelimit:public:${ip}`;
 }
 
 /** TTL for `target:{id}:latest` is max(2 × interval, 120s). */

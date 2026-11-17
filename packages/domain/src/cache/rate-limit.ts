@@ -1,11 +1,10 @@
 import { PUBLIC_RATE_LIMIT_WINDOW_SECONDS } from './keys.js';
 
-export function rateLimitWindowStartSeconds(
-  now: Date,
-  windowSeconds: number = PUBLIC_RATE_LIMIT_WINDOW_SECONDS,
+export function rateLimitWindowCutoffMs(
+  nowMs: number,
+  windowMs: number = PUBLIC_RATE_LIMIT_WINDOW_SECONDS * 1000,
 ): number {
-  const epoch = Math.floor(now.getTime() / 1000);
-  return Math.floor(epoch / windowSeconds) * windowSeconds;
+  return nowMs - windowMs;
 }
 
 export function rateLimitRemaining(limit: number, count: number): number {
@@ -17,9 +16,10 @@ export function rateLimitAllowed(count: number, limit: number): boolean {
 }
 
 export function rateLimitRetryAfterSeconds(
-  ttlSeconds: number,
-  windowSeconds: number = PUBLIC_RATE_LIMIT_WINDOW_SECONDS,
+  oldestAdmittedMs: number,
+  nowMs: number,
+  windowMs: number = PUBLIC_RATE_LIMIT_WINDOW_SECONDS * 1000,
 ): number {
-  if (ttlSeconds > 0) return ttlSeconds;
-  return windowSeconds;
+  const remainingMs = oldestAdmittedMs + windowMs - nowMs;
+  return Math.max(1, Math.ceil(remainingMs / 1000));
 }

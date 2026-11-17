@@ -15,7 +15,7 @@ aside from `request_id`.
 | --- | --- | --- | --- | --- |
 | `target:{id}:latest` | JSON latest status | `max(2 × interval, 120s)` | after each check commit | target update/delete |
 | `statuspage:{slug}` | JSON status page payload | 15s | on read miss | check commit for that target; target update |
-| `ratelimit:public:{ip}:{window}` | counter | window length | per public API request | expiry |
+| `ratelimit:public:{ip}` | sorted set of admitted GET timestamps | 60s | per admitted public GET | expiry |
 
 - Keys are built by one helper module (`keys.ts`), never string-concatenated at call sites.
 - Values are versioned JSON (`{ "v": 1, ... }`) so a deploy can change shape without flushing.
@@ -31,7 +31,10 @@ aside from `request_id`.
 
 ## Rate limit (FR-PUB-004)
 
-- Per client IP, `PUBLIC_RATE_LIMIT_PER_MIN` (default 60), fixed or sliding window implemented atomically in Redis (Lua or `MULTI`).
-- Headers on every response: `X-RateLimit-Limit`, `X-RateLimit-Remaining`; on 429 add `Retry-After` (seconds).
+- Per client IP, `PUBLIC_RATE_LIMIT_PER_MIN` (default 60) **admitted GET** requests in a 60-second **sliding window**, implemented atomically in Redis (Lua over a ZSET of admission timestamps). Rejected requests are not stored.
+- `Retry-After` on 429 is the ceiling of seconds until the oldest admission leaves the window, minimum 1, so a 429 stays 429 across a Unix minute until that instant.
+- Headers on every public GET: `X-RateLimit-Limit`, `X-RateLimit-Remaining`; on 429 add `Retry-After` (seconds).
 - Client IP comes from Fastify's `request.ip` with `trustProxy` configured explicitly; never trust a raw `X-Forwarded-For`.
 - Authenticated dashboard routes are not rate limited by this limiter.
+- `OPTIONS /api/public/v1/status/:slug` is **204**, does not consume GET quota, and does not consult Redis (still 204 when Redis is down). GET still fail-closes 503 without Redis.
+- CORS: every public status response sends `Vary: Origin`. `Access-Control-Allow-Origin` is set only for an exact `PUBLIC_CORS_ORIGINS` match. An empty allowlist never sends ACAO.

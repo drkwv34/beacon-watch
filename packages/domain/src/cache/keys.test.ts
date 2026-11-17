@@ -14,7 +14,7 @@ describe('cache keys', () => {
       'target:11111111-1111-4111-8111-111111111111:latest',
     );
     expect(statusPageKey('portfolio-demo')).toBe('statuspage:portfolio-demo');
-    expect(publicRateLimitKey('203.0.113.10', 1_700_000_000)).toBe('ratelimit:public:203.0.113.10:1700000000');
+    expect(publicRateLimitKey('203.0.113.10')).toBe('ratelimit:public:203.0.113.10');
     expect(CACHE_VALUE_VERSION).toBe(1);
     expect(STATUS_PAGE_TTL_SECONDS).toBe(15);
   });
