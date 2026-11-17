@@ -17,7 +17,7 @@
 
 ## 4. Integration check
 
-- [ ] 4.1 Run `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build` and `openspec validate align-public-rate-limits --strict`; verify all exit 0.
+- [x] 4.1 Run `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build` and `openspec validate align-public-rate-limits --strict`; verify all exit 0.
 
 ## Workflow follow-up
 

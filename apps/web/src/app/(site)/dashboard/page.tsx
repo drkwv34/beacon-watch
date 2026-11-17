@@ -1,9 +1,8 @@
-import { redirect } from 'next/navigation';
-import { LogoutButton } from '../../../components/logout-button';
 import { RelativeTime } from '../../../components/relative-time';
 import { StatePanel } from '../../../components/state-panel';
 import { StatusBadge } from '../../../components/status-badge';
 import { formatLatency } from '../../../lib/format';
+import { requireDashboardSession } from '../../../lib/dashboard-session';
 import { apiFetch } from '../../../lib/session';
 import type { PublicTarget } from '../../../lib/types';
 
@@ -14,8 +13,17 @@ interface TargetList {
 }
 
 export default async function DashboardPage() {
+  const session = await requireDashboardSession();
+  if (!session.ok) {
+    return (
+      <StatePanel
+        tone="danger"
+        title="Could not load monitors"
+        body={`The API returned ${session.status}. Request ${session.requestId}.`}
+      />
+    );
+  }
   const res = await apiFetch('/api/v1/targets');
-  if (res.status === 401) redirect('/login');
   if (!res.ok) {
     return (
       <StatePanel
@@ -48,7 +56,6 @@ export default async function DashboardPage() {
           <a className="button" href="/dashboard/targets/new">
             Add monitor
           </a>
-          <LogoutButton />
         </div>
       </div>
       <div className="table-wrap">

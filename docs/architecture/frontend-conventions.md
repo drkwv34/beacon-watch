@@ -14,7 +14,7 @@ Goal: calm, legible, operational. It should read like a status console, not a ma
 ## Layout
 
 - Single column, max content width `--content-max` (72rem), `--space-*` scale (4px base). Mobile-first; must work at **375px** (SRS §4.1).
-- App shell: top header (brand, nav, account), `<main id="main">`, skip link first in the DOM.
+- App shell: top header (brand, nav, account), `<main id="main">`, skip link first in the DOM. Site nav and `/dashboard/targets/new` load `GET /api/v1/auth/me` (cookie forwarded, never decoded in Next). 401 on create redirects to login; 503 is a distinct error panel. Nav is `force-dynamic` / no-store so one owner's chrome is not reused for another.
 - Dashboard list is a table on desktop and stacked cards below 640px. Target detail: status header → recent checks → incident timeline → edit form.
 - Public status page: target name, big status badge, 24h uptime %, recent incidents; no navigation chrome beyond the brand.
 
